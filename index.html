@@ -4,10 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>LC-MS 个人方法库</title>
+    
+    <link rel="manifest" href="./manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧪</text></svg>">
+    
+    <script>
+        window.onerror = function(msg, url, lineNo) { console.error("发生错误: " + msg); return false; };
+    </script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.staticfile.net/vue/3.3.4/vue.global.prod.min.js"></script>
     <script src="https://cdn.staticfile.net/localforage/1.10.0/localforage.min.js"></script>
     <script src="https://cdn.staticfile.net/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    
     <style>
         ::-webkit-scrollbar { display: none; }
         body { background-color: #1a1a1b !important; color: #d1d1d1 !important; -webkit-user-select: none; user-select: none; }
@@ -15,7 +26,6 @@
         input, textarea, select { background-color: #2b2b2b !important; color: #e0e0e0 !important; border: 1px solid #444 !important; user-select: auto !important; }
         .btn-blue { background-color: #314d71; color: #ffffff; }
         .btn-green { background-color: #2d5a3f; color: #ffffff; }
-        .btn-red { background-color: #7f1d1d; color: #ffffff; }
         tbody tr:hover { background-color: #2d2d2e !important; }
     </style>
 </head>
@@ -232,7 +242,7 @@
 
         <main v-if="view === 'settings'" class="p-4 space-y-6">
             <h3 class="text-xl font-bold text-blue-400 mb-6 border-b border-gray-800 pb-2">自定义系统配置</h3>
-            <div v-for="dict in [{key: 'compTags', title: '化合物分类标签', placeholder: '如: 生物碱, 番茄'}, {key: 'methodTags', title: '分析方法场景', placeholder: '如: 17min代谢组, 短柱快跑'}, {key: 'columns', title: '常用色谱柱库', placeholder: '如: HSS T3 100mm'}]" :key="dict.key" class="dark-card p-4 rounded-lg shadow-md">
+            <div v-for="dict in [{key: 'compTags', title: '化合物分类标签', placeholder: '如: 生物碱, 番茄'}, {key: 'methodTags', title: '分析方法场景', placeholder: '如: 17min代谢组'}, {key: 'columns', title: '常用色谱柱库', placeholder: '如: HSS T3 100mm'}]" :key="dict.key" class="dark-card p-4 rounded-lg shadow-md">
                 <h4 class="font-bold text-gray-200 mb-3 flex items-center gap-2">
                     <span class="w-2 h-2 bg-blue-500 rounded-full"></span> {{ dict.title }}
                 </h4>
@@ -247,11 +257,18 @@
                     <span v-if="!(sysDict[dict.key] || []).length" class="text-xs text-gray-600 italic">暂无配置数据</span>
                 </div>
             </div>
-            <div class="mt-20 border-t border-red-900/30 pt-10 text-center">
-                <button @click="factoryReset" class="text-red-900/60 text-[10px] border border-red-900/20 px-3 py-1 rounded hover:bg-red-900/10">恢复出厂设置 (清空所有数据)</button>
-            </div>
         </main>
     </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    console.log('离线模式启动成功！', reg);
+                }).catch(err => console.log('离线模式启动失败', err));
+            });
+        }
+    </script>
 
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
@@ -279,13 +296,12 @@
                         const dict = await localforage.getItem('sysDict');
                         if (dict) sysDict.value = dict;
 
-                        // 强效修复数据结构
                         compounds.value.forEach(c => { if(!c.tags) c.tags = []; });
                         methods.value.forEach(m => {
                             if(!m.mrms) m.mrms = [{q1:m.q1||'', q3:m.q3||'', dp:m.dp||'', ce:m.ce||''}];
                             if(!m.gradientTable) m.gradientTable = [{time:'0',b:'5'}];
                         });
-                    } catch (e) { console.error("Database Init Failed"); }
+                    } catch (e) { console.error("DB Init Fail"); }
                 });
 
                 const filteredCompounds = computed(() => {
@@ -312,7 +328,7 @@
                 };
                 const deleteDict = async (k, i) => { sysDict.value[k].splice(i, 1); await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value))); };
 
-                const goBack = () => { if(view.value === 'methodForm' || view.value === 'compoundForm') { view.value = 'compoundDetail'; } else { view.value = 'list'; currentCompoundId.value = null; } };
+                const goBack = () => { if(view.value === 'methodForm' || view.value === 'compoundForm') { view.value = 'compoundDetail'; } else { view.value = 'list'; currentCompoundId.value = null; } window.scrollTo(0,0); };
                 const goToCompoundDetail = (id) => { currentCompoundId.value = id; view.value = 'compoundDetail'; window.scrollTo(0,0); };
                 const goToAddCompound = () => { compoundForm.value = { id: null, name: '', formula: '', tags: [] }; view.value = 'compoundForm'; };
                 const goToEditCompound = () => { compoundForm.value = JSON.parse(JSON.stringify(currentCompound.value)); view.value = 'compoundForm'; };
@@ -391,9 +407,7 @@
                     r.readAsArrayBuffer(f);
                 };
 
-                const factoryReset = async () => { if (confirm('此操作将永久清空本地数据库，请确认！')) { await localforage.clear(); window.location.reload(); } };
-
-                return { view, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel, factoryReset };
+                return { view, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel };
             }
         }).mount('#app');
     </script>

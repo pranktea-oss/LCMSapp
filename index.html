@@ -53,6 +53,7 @@
                         <option value="time">最新添加</option>
                         <option value="name">名称 (A-Z)</option>
                         <option value="mass">质量 (大到小)</option>
+                        <option value="massAsc">质量 (小到大)</option>
                     </select>
                 </div>
                 
@@ -302,7 +303,6 @@
                     });
                 });
 
-                // ---- 核心：新增的多维度排序逻辑 ----
                 const filteredCompounds = computed(() => {
                     let res = [...compounds.value];
                     if (searchQuery.value) res = res.filter(c => c.name.toLowerCase().includes(searchQuery.value.toLowerCase()));
@@ -316,6 +316,10 @@
                             const massA = parseFloat(calculateMass(a.formula)) || 0;
                             const massB = parseFloat(calculateMass(b.formula)) || 0;
                             return massB - massA; // 分子量降序（从大到小）
+                        } else if (sortBy.value === 'massAsc') {
+                            const massA = parseFloat(calculateMass(a.formula)) || 0;
+                            const massB = parseFloat(calculateMass(b.formula)) || 0;
+                            return massA - massB; // 分子量升序（从小到大）
                         } else {
                             // time 排序：因为 id 是基于 Date.now() 生成的时间戳字符串，直接倒序对比即可
                             return (b.id || '').localeCompare(a.id || '');

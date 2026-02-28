@@ -10,10 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧪</text></svg>">
     
-    <script>
-        window.onerror = function(msg, url, lineNo) { console.error("发生错误: " + msg); return false; };
-    </script>
-    
+    <script>window.onerror = function(msg) { console.error("发生错误: " + msg); return false; };</script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.staticfile.net/vue/3.3.4/vue.global.prod.min.js"></script>
     <script src="https://cdn.staticfile.net/localforage/1.10.0/localforage.min.js"></script>
@@ -32,9 +29,7 @@
 <body class="antialiased">
     <div id="app" class="max-w-3xl mx-auto min-h-screen relative pb-20 shadow-2xl" style="background-color: #1a1a1b;">
         <header class="p-4 sticky top-0 z-10 flex justify-between items-center shadow-lg" style="background-color: #222223; border-bottom: 1px solid #333;">
-            <h1 class="text-lg font-bold text-gray-200">
-                {{ view === 'list' ? '化合物库' : (view === 'settings' ? '字典管理' : (view === 'compoundDetail' ? '详情' : '编辑')) }}
-            </h1>
+            <h1 class="text-lg font-bold text-gray-200">{{ view === 'list' ? '化合物库' : (view === 'settings' ? '字典管理' : (view === 'compoundDetail' ? '详情' : '编辑')) }}</h1>
             <div class="flex gap-2">
                 <button v-if="view === 'list'" @click="view = 'settings'" class="text-xs px-3 py-1 rounded border border-gray-600 bg-gray-800">字典管理</button>
                 <button v-if="view !== 'list'" @click="goBack" class="text-xs px-3 py-1 rounded border border-gray-600 bg-gray-800">返回</button>
@@ -125,7 +120,7 @@
             <div class="space-y-4">
                 <div><label class="text-xs text-gray-500 block mb-1 font-bold">化合物名称</label>
                 <input v-model="compoundForm.name" type="text" class="w-full rounded px-3 py-2 text-sm outline-none"></div>
-                <div><label class="text-xs text-gray-500 block mb-1 font-bold">化学式 (C, H, O, N, S, P, Na, K)</label>
+                <div><label class="text-xs text-gray-500 block mb-1 font-bold">化学式</label>
                 <input v-model="compoundForm.formula" type="text" placeholder="例如: C10H15NO" class="w-full rounded px-3 py-2 text-sm outline-none font-mono"></div>
                 <div>
                     <label class="text-xs text-gray-500 block mb-1 font-bold">化合物标签 (限3个)</label>
@@ -167,7 +162,7 @@
                         </div>
                     </div>
                     <div class="dark-card p-3 rounded-lg">
-                        <label class="text-[10px] font-bold text-gray-400 block mb-2">MRM 转换 (多个同分异构体参数)</label>
+                        <label class="text-[10px] font-bold text-gray-400 block mb-2">MRM 转换</label>
                         <table class="w-full text-[10px] text-center">
                             <thead class="text-gray-600 border-b border-gray-800"><tr><th>Q1</th><th>Q3</th><th>DP</th><th>CE</th><th></th></tr></thead>
                             <tbody>
@@ -194,14 +189,10 @@
                             </select>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
-                            <div><label class="text-[10px] text-gray-500 block mb-1">流动相 A + 添加剂</label>
-                            <input v-model="methodForm.additiveA" placeholder="如: 水 + 0.1% FA" class="w-full rounded px-2 py-2 text-xs"></div>
-                            <div><label class="text-[10px] text-gray-500 block mb-1">流动相 B + 添加剂</label>
-                            <input v-model="methodForm.additiveB" placeholder="如: 乙腈 + 0.1% FA" class="w-full rounded px-2 py-2 text-xs"></div>
-                            <div><label class="text-[10px] text-gray-500 block mb-1">保留时间 RT (min)</label>
-                            <input v-model="methodForm.rt" step="0.01" type="number" class="w-full rounded px-2 py-2 text-xs font-bold"></div>
-                            <div><label class="text-[10px] text-gray-500 block mb-1">流速 (mL/min)</label>
-                            <input v-model="methodForm.flowRate" step="0.01" type="number" class="w-full rounded px-2 py-2 text-xs"></div>
+                            <div><label class="text-[10px] text-gray-500 block mb-1">流动相 A + 添加剂</label><input v-model="methodForm.additiveA" class="w-full rounded px-2 py-2 text-xs"></div>
+                            <div><label class="text-[10px] text-gray-500 block mb-1">流动相 B + 添加剂</label><input v-model="methodForm.additiveB" class="w-full rounded px-2 py-2 text-xs"></div>
+                            <div><label class="text-[10px] text-gray-500 block mb-1">保留时间 RT (min)</label><input v-model="methodForm.rt" step="0.01" type="number" class="w-full rounded px-2 py-2 text-xs font-bold"></div>
+                            <div><label class="text-[10px] text-gray-500 block mb-1">流速 (mL/min)</label><input v-model="methodForm.flowRate" step="0.01" type="number" class="w-full rounded px-2 py-2 text-xs"></div>
                         </div>
                         <div class="dark-card p-3 rounded-lg">
                             <label class="text-[10px] font-bold text-gray-400 block mb-2">洗脱梯度表 (Time vs B%)</label>
@@ -224,11 +215,11 @@
                     <h4 class="text-xs font-bold text-gray-500 mb-3 border-l-4 border-orange-500 pl-2">备注与附件</h4>
                     <textarea v-model="methodForm.notes" rows="2" placeholder="填写实验备注..." class="w-full rounded px-3 py-2 text-xs outline-none"></textarea>
                     <div class="mt-3 p-3 border border-gray-800 rounded-lg bg-black/20">
-                        <label class="text-[10px] text-gray-500 block mb-2 font-bold uppercase">上传 TIC/MRM 截图 (本地存储)</label>
+                        <label class="text-[10px] text-gray-500 block mb-2 font-bold uppercase">上传图谱 (本地存储)</label>
                         <input type="file" @change="handleImage" class="text-[10px] text-gray-500 mb-2 block w-full">
                         <div v-if="methodForm.image" class="mt-2 relative">
                             <img :src="methodForm.image" class="w-full rounded border border-gray-700 shadow-lg">
-                            <button @click="methodForm.image = null" class="absolute -top-2 -right-2 bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center font-bold border-2 border-[#1a1a1b]">×</button>
+                            <button @click="methodForm.image = null" class="absolute -top-2 -right-2 bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center font-bold">×</button>
                         </div>
                     </div>
                 </section>
@@ -243,74 +234,60 @@
         <main v-if="view === 'settings'" class="p-4 space-y-6">
             <h3 class="text-xl font-bold text-blue-400 mb-6 border-b border-gray-800 pb-2">自定义系统配置</h3>
             <div v-for="dict in [{key: 'compTags', title: '化合物分类标签', placeholder: '如: 生物碱, 番茄'}, {key: 'methodTags', title: '分析方法场景', placeholder: '如: 17min代谢组'}, {key: 'columns', title: '常用色谱柱库', placeholder: '如: HSS T3 100mm'}]" :key="dict.key" class="dark-card p-4 rounded-lg shadow-md">
-                <h4 class="font-bold text-gray-200 mb-3 flex items-center gap-2">
-                    <span class="w-2 h-2 bg-blue-500 rounded-full"></span> {{ dict.title }}
-                </h4>
+                <h4 class="font-bold text-gray-200 mb-3 flex items-center gap-2"><span class="w-2 h-2 bg-blue-500 rounded-full"></span> {{ dict.title }}</h4>
                 <div class="flex gap-2 mb-4">
                     <input v-model="newDictStr[dict.key]" type="text" :placeholder="dict.placeholder" class="flex-1 rounded px-3 py-2 text-xs outline-none">
                     <button @click="addDict(dict.key)" class="btn-blue px-4 py-1 rounded text-xs font-bold">添加</button>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <span v-for="(item, idx) in (sysDict[dict.key] || [])" :key="idx" class="bg-gray-800 text-gray-300 px-2 py-1.5 rounded text-[11px] flex items-center border border-gray-700 shadow-sm">
-                        {{ item }} <button @click="deleteDict(dict.key, idx)" class="ml-2 text-red-500 font-bold hover:text-red-400">×</button>
+                        {{ item }} <button @click="deleteDict(dict.key, idx)" class="ml-2 text-red-500 font-bold">×</button>
                     </span>
                     <span v-if="!(sysDict[dict.key] || []).length" class="text-xs text-gray-600 italic">暂无配置数据</span>
                 </div>
+            </div>
+            <div class="mt-20 border-t border-red-900/30 pt-10 text-center">
+                <button @click="factoryReset" class="text-red-900/60 text-[10px] border border-red-900/20 px-3 py-1 rounded">恢复出厂设置</button>
             </div>
         </main>
     </div>
 
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then(reg => {
-                    console.log('离线模式启动成功！', reg);
-                }).catch(err => console.log('离线模式启动失败', err));
-            });
+            window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
         }
-    </script>
-
-    <script>
         const { createApp, ref, computed, onMounted } = Vue;
         createApp({
             setup() {
                 const view = ref('list');
                 const compounds = ref([]);
                 const methods = ref([]);
-                const sysDict = ref({ columns: [], compTags: ['类黄酮', '生物碱', '茄碱'], methodTags: ['17min代谢组', '25min广谱', '10min靶向'] });
+                const sysDict = ref({ columns: [], compTags: ['类黄酮', '生物碱'], methodTags: ['17min代谢组'] });
                 const newDictStr = ref({ columns: '', compTags: '', methodTags: '' });
-                const searchQuery = ref('');
-                const filterCompTag = ref('');
-                const filterMethodTag = ref('');
-                const selectedCompIds = ref([]);
-                const currentCompoundId = ref(null);
+                const searchQuery = ref(''); const filterCompTag = ref(''); const filterMethodTag = ref('');
+                const selectedCompIds = ref([]); const currentCompoundId = ref(null);
                 const compoundForm = ref({ id: null, name: '', formula: '', tags: [] });
                 const methodForm = ref({});
                 const atomicMasses = { H: 1.007825, C: 12.000000, N: 14.003074, O: 15.994915, P: 30.973762, S: 31.972071, Na: 22.989770, K: 38.963707 };
 
                 onMounted(async () => {
-                    try {
-                        localforage.config({ name: 'LCMS_LIMS', storeName: 'database' });
-                        compounds.value = (await localforage.getItem('compounds')) || [];
-                        methods.value = (await localforage.getItem('methods')) || [];
-                        const dict = await localforage.getItem('sysDict');
-                        if (dict) sysDict.value = dict;
-
-                        compounds.value.forEach(c => { if(!c.tags) c.tags = []; });
-                        methods.value.forEach(m => {
-                            if(!m.mrms) m.mrms = [{q1:m.q1||'', q3:m.q3||'', dp:m.dp||'', ce:m.ce||''}];
-                            if(!m.gradientTable) m.gradientTable = [{time:'0',b:'5'}];
-                        });
-                    } catch (e) { console.error("DB Init Fail"); }
+                    localforage.config({ name: 'LCMS_LIMS', storeName: 'database' });
+                    compounds.value = (await localforage.getItem('compounds')) || [];
+                    methods.value = (await localforage.getItem('methods')) || [];
+                    const dict = await localforage.getItem('sysDict');
+                    if (dict) sysDict.value = dict;
+                    compounds.value.forEach(c => { if(!c.tags) c.tags = []; });
+                    methods.value.forEach(m => {
+                        if(!m.mrms) m.mrms = [{q1:m.q1||'', q3:m.q3||'', dp:m.dp||'', ce:m.ce||''}];
+                        if(!m.gradientTable) m.gradientTable = [{time:'0',b:'5'}];
+                    });
                 });
 
                 const filteredCompounds = computed(() => {
                     let res = [...compounds.value];
                     if (searchQuery.value) res = res.filter(c => c.name.toLowerCase().includes(searchQuery.value.toLowerCase()));
                     if (filterCompTag.value) res = res.filter(c => c.tags && c.tags.includes(filterCompTag.value));
-                    if (filterMethodTag.value) {
-                        res = res.filter(c => methods.value.filter(m => m.compoundId === c.id).some(m => m.methodTag === filterMethodTag.value));
-                    }
+                    if (filterMethodTag.value) res = res.filter(c => methods.value.filter(m => m.compoundId === c.id).some(m => m.methodTag === filterMethodTag.value));
                     return res.sort((a, b) => a.name.localeCompare(b.name));
                 });
 
@@ -321,9 +298,7 @@
 
                 const addDict = async (k) => {
                     if (newDictStr.value[k] && !sysDict.value[k].includes(newDictStr.value[k])) {
-                        sysDict.value[k].push(newDictStr.value[k]);
-                        await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value)));
-                        newDictStr.value[k] = '';
+                        sysDict.value[k].push(newDictStr.value[k]); await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value))); newDictStr.value[k] = '';
                     }
                 };
                 const deleteDict = async (k, i) => { sysDict.value[k].splice(i, 1); await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value))); };
@@ -373,16 +348,40 @@
                     return m > 0 ? m.toFixed(4) : '';
                 };
 
-                const triggerImport = () => document.getElementById('importFile').click();
+                // ---- 核心：定制化导出逻辑 ----
                 const exportExcel = () => {
+                    if (selectedCompIds.value.length === 0) return alert('请先在左侧勾选需要导出的化合物！');
                     const data = compounds.value.filter(c => selectedCompIds.value.includes(c.id)).flatMap(c => {
                         const ms = methods.value.filter(m => m.compoundId === c.id);
-                        return ms.length ? ms.map(m => ({ 化合物: c.name, 化学式: c.formula, 场景: m.methodTag, RT: m.rt, MRM_List: m.mrms.map(x=>`${x.q1}->${x.q3}(CE:${x.ce})`).join(' | '), 色谱柱: m.columnInfo, 梯度: m.gradientTable.map(x=>`${x.time}min:${x.b}%`).join('; ') })) : [{ 化合物: c.name, 化学式: c.formula }];
+                        const tagsStr = (c.tags || []).join(';');
+                        
+                        if (ms.length === 0) {
+                            return [{ '选择框': '', '化合物名称': c.name, '化学式': c.formula, '离子加荷': '', 'RT': '', 'Q1': '', 'Q3': '', '化合物标签': tagsStr, '应用场景': '', '色谱柱': '' }];
+                        }
+                        return ms.map(m => {
+                            const q1 = (m.mrms && m.mrms.length > 0) ? m.mrms[0].q1 : '';
+                            const q3Str = (m.mrms || []).map(x => x.q3).filter(Boolean).join(';');
+                            return {
+                                '选择框': '',
+                                '化合物名称': c.name,
+                                '化学式': c.formula,
+                                '离子加荷': m.adduct,
+                                'RT': m.rt,
+                                'Q1': q1,
+                                'Q3': q3Str,
+                                '化合物标签': tagsStr,
+                                '应用场景': m.methodTag,
+                                '色谱柱': m.columnInfo || ''
+                            };
+                        });
                     });
                     const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "LCMS_Data");
-                    XLSX.writeFile(wb, `LCMS_LIMS_Export_${new Date().toLocaleDateString()}.xlsx`);
+                    XLSX.writeFile(wb, `LCMS_方法导出_${new Date().toLocaleDateString()}.xlsx`);
                 };
 
+                const triggerImport = () => document.getElementById('importFile').click();
+
+                // ---- 核心：定制化导入逻辑 (含字典自动生长) ----
                 const importExcel = (e) => {
                     const f = e.target.files[0]; if(!f) return;
                     const r = new FileReader();
@@ -391,23 +390,82 @@
                             const data = new Uint8Array(ev.target.result);
                             const wb = XLSX.read(data, { type: 'array' });
                             const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                            if (json.length === 0) return alert('表格为空！');
+
+                            let newCompoundsCount = 0; let newMethodsCount = 0; let dictUpdated = false;
+
                             json.forEach(row => {
-                                if (!row['化合物']) return;
-                                let c = compounds.value.find(x => x.name === row['化合物']);
-                                if (!c) { c = { id: Date.now().toString()+Math.random(), name: row['化合物'], formula: row['化学式']||'', tags: [] }; compounds.value.push(c); }
-                                if (row['MRM_List'] || row['RT']) {
-                                    methods.value.push({ id: Date.now().toString()+Math.random(), compoundId: c.id, methodTag: row['场景']||'Excel导入', rt: row['RT']||'', mrms: [{q1:row['MRM_List']?.split('->')[0]||'', q3:row['MRM_List']?.split('->')[1]||'', dp:'', ce:''}], esiApci: 'ESI', adduct: '[M+H]+', columnInfo: row['色谱柱']||'', gradientTable: [{time:'0',b:'5'}] });
+                                const compName = (row['化合物名称'] || row['化合物名稱'])?.toString().trim();
+                                if (!compName) return;
+
+                                // 1. 自动学习字典：标签、场景、色谱柱
+                                let rawTags = [];
+                                const tagCol = row['化合物标签'] || row['化合物標籤'];
+                                if (tagCol) {
+                                    rawTags = tagCol.toString().split(/[,，;；]/).map(t=>t.trim()).filter(Boolean);
+                                    rawTags.forEach(t => {
+                                        if (!sysDict.value.compTags.includes(t)) { sysDict.value.compTags.push(t); dictUpdated = true; }
+                                    });
+                                }
+
+                                let methodTag = row['应用场景']?.toString().trim() || '';
+                                if (methodTag && !sysDict.value.methodTags.includes(methodTag)) {
+                                    sysDict.value.methodTags.push(methodTag); dictUpdated = true;
+                                }
+
+                                let colInfo = row['色谱柱']?.toString().trim() || '';
+                                if (colInfo && !sysDict.value.columns.includes(colInfo)) {
+                                    sysDict.value.columns.push(colInfo); dictUpdated = true;
+                                }
+
+                                // 2. 化合物入库
+                                let comp = compounds.value.find(c => c.name === compName);
+                                if (!comp) { 
+                                    comp = { id: genId(), name: compName, formula: row['化学式']?.toString().trim()||'', tags: rawTags }; 
+                                    compounds.value.push(comp); newCompoundsCount++; 
+                                } else {
+                                    const newTags = new Set([...(comp.tags||[]), ...rawTags]);
+                                    comp.tags = Array.from(newTags).slice(0, 3);
+                                }
+
+                                // 3. 方法入库及 Q1/Q3 解析
+                                if (row['Q1'] || row['Q3'] || row['RT']) {
+                                    let q1 = row['Q1']?.toString().trim() || '';
+                                    let q3Str = row['Q3']?.toString().trim() || '';
+                                    let q3Array = q3Str.split(/[,，;；]/).map(x=>x.trim()).filter(Boolean);
+                                    
+                                    let parsedMrms = [];
+                                    if (q3Array.length > 0) {
+                                        q3Array.forEach(q3 => { parsedMrms.push({ q1: q1, q3: q3, dp: '', ce: '' }); });
+                                    } else {
+                                        parsedMrms.push({ q1: q1, q3: '', dp: '', ce: '' });
+                                    }
+
+                                    methods.value.push({ 
+                                        id: genId(), compoundId: comp.id, 
+                                        methodTag: methodTag || 'Excel导入', 
+                                        esiApci: 'ESI', adduct: row['离子加荷']?.toString().trim() || '[M+H]+', 
+                                        mrms: parsedMrms, rt: row['RT']?.toString().trim() || '', 
+                                        columnInfo: colInfo, mpA: '', additiveA: '', mpB: '', additiveB: '', flowRate: '', 
+                                        gradientTable: [{time:'0',b:'5'}], notes: '', image: null 
+                                    });
+                                    newMethodsCount++;
                                 }
                             });
+
+                            if (dictUpdated) await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value)));
                             await localforage.setItem('compounds', JSON.parse(JSON.stringify(compounds.value)));
                             await localforage.setItem('methods', JSON.parse(JSON.stringify(methods.value)));
-                            alert('导入完成，已同步数据库。');
-                        } catch(err) { alert("导入格式错误"); }
+                            alert(`导入成功！\n新增/更新化合物: ${newCompoundsCount} 个\n导入分析方法: ${newMethodsCount} 条\n${dictUpdated ? '（检测到新标签/场景/色谱柱，已自动收录入字典）' : ''}`);
+                            e.target.value = '';
+                        } catch(err) { alert("导入格式错误，请确保列名与导出的模板严格一致。"); }
                     };
                     r.readAsArrayBuffer(f);
                 };
 
-                return { view, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel };
+                const factoryReset = async () => { if (confirm('此操作将永久清空本地数据库，请确认！')) { await localforage.clear(); window.location.reload(); } };
+
+                return { view, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel, factoryReset };
             }
         }).mount('#app');
     </script>

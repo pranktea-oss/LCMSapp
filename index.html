@@ -37,16 +37,22 @@
         </header>
 
         <main v-if="view === 'list'" class="p-4">
-            <div class="mb-4 space-y-2">
+            <div class="mb-4 space-y-3">
                 <input v-model="searchQuery" type="text" placeholder="搜索化合物..." class="w-full rounded px-3 py-2 text-sm outline-none">
-                <div class="flex gap-2 text-xs">
-                    <select v-model="filterCompTag" class="flex-1 rounded px-2 py-1 outline-none">
-                        <option value="">所有化合物标签</option>
+                
+                <div class="grid grid-cols-3 gap-2 text-[11px]">
+                    <select v-model="filterCompTag" class="rounded px-1 py-1.5 outline-none">
+                        <option value="">所有标签</option>
                         <option v-for="tag in sysDict.compTags" :key="tag" :value="tag">{{ tag }}</option>
                     </select>
-                    <select v-model="filterMethodTag" class="flex-1 rounded px-2 py-1 outline-none">
-                        <option value="">所有应用场景</option>
+                    <select v-model="filterMethodTag" class="rounded px-1 py-1.5 outline-none">
+                        <option value="">所有场景</option>
                         <option v-for="tag in sysDict.methodTags" :key="tag" :value="tag">{{ tag }}</option>
+                    </select>
+                    <select v-model="sortBy" class="rounded px-1 py-1.5 outline-none font-bold">
+                        <option value="time">最新添加</option>
+                        <option value="name">名称 (A-Z)</option>
+                        <option value="mass">质量 (大到小)</option>
                     </select>
                 </div>
                 
@@ -275,6 +281,7 @@
                 const sysDict = ref({ columns: [], compTags: ['类黄酮', '生物碱', '核苷酸及衍生物'], methodTags: ['17min代谢组', '25min广谱', 'T3 17min'] });
                 const newDictStr = ref({ columns: '', compTags: '', methodTags: '' });
                 const searchQuery = ref(''); const filterCompTag = ref(''); const filterMethodTag = ref('');
+                const sortBy = ref('time'); // 默认按最新添加时间排序
                 const selectedCompIds = ref([]); const currentCompoundId = ref(null);
                 const compoundForm = ref({ id: null, name: '', formula: '', tags: [] });
                 const methodForm = ref({});
@@ -295,12 +302,25 @@
                     });
                 });
 
+                // ---- 核心：新增的多维度排序逻辑 ----
                 const filteredCompounds = computed(() => {
                     let res = [...compounds.value];
                     if (searchQuery.value) res = res.filter(c => c.name.toLowerCase().includes(searchQuery.value.toLowerCase()));
                     if (filterCompTag.value) res = res.filter(c => c.tags && c.tags.includes(filterCompTag.value));
                     if (filterMethodTag.value) res = res.filter(c => methods.value.filter(m => m.compoundId === c.id).some(m => m.methodTag === filterMethodTag.value));
-                    return res.sort((a, b) => a.name.localeCompare(b.name));
+                    
+                    return res.sort((a, b) => {
+                        if (sortBy.value === 'name') {
+                            return a.name.localeCompare(b.name);
+                        } else if (sortBy.value === 'mass') {
+                            const massA = parseFloat(calculateMass(a.formula)) || 0;
+                            const massB = parseFloat(calculateMass(b.formula)) || 0;
+                            return massB - massA; // 分子量降序（从大到小）
+                        } else {
+                            // time 排序：因为 id 是基于 Date.now() 生成的时间戳字符串，直接倒序对比即可
+                            return (b.id || '').localeCompare(a.id || '');
+                        }
+                    });
                 });
 
                 const currentCompound = computed(() => compounds.value.find(c => c.id === currentCompoundId.value));
@@ -362,7 +382,7 @@
 
                 const safeStr = (val) => (val !== undefined && val !== null) ? String(val).trim() : '';
 
-                // ---- 常规表导出 (严格按照指定格式) ----
+                // ---- 常规表导出 ----
                 const exportExcel = () => {
                     if (selectedCompIds.value.length === 0) return alert('请先在左侧勾选需要导出的化合物！');
                     const data = compounds.value.filter(c => selectedCompIds.value.includes(c.id)).flatMap(c => {
@@ -384,7 +404,6 @@
                         });
                     });
                     
-                    // 强制固定列头顺序
                     const header = ['选择框', '化合物名称', '化学式', '离子加荷', 'RT', 'Q1', 'Q3', '化合物标签', '应用场景', '色谱柱', '流动相A', '流动相B', '流速', '洗脱梯度', '备注'];
                     const ws = XLSX.utils.json_to_sheet(data, { header: header }); 
                     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "LCMS_Data");
@@ -418,7 +437,7 @@
                 const triggerImport = () => document.getElementById('importFile').click();
                 const triggerImportMRM = () => document.getElementById('importMRMFile').click();
 
-                // ---- 常规表导入 (扩展支持新列) ----
+                // ---- 常规表导入 ----
                 const importExcel = (e) => {
                     const f = e.target.files[0]; if(!f) return;
                     const r = new FileReader();
@@ -469,7 +488,6 @@
                                         parsedMrms.push({ q1: q1, q3: '', dp: '', ce: '' });
                                     }
 
-                                    // 解析梯度
                                     let parsedGradient = [{time: '0', b: '5'}];
                                     let gradStr = safeStr(row['洗脱梯度']);
                                     if (gradStr) {
@@ -566,7 +584,7 @@
 
                 const factoryReset = async () => { if (confirm('此操作将永久清空本地数据库，请确认！')) { await localforage.clear(); window.location.reload(); } };
 
-                return { view, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel, triggerImportMRM, exportMRMExcel, importMRMExcel, factoryReset };
+                return { view, sortBy, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel, triggerImportMRM, exportMRMExcel, importMRMExcel, factoryReset };
             }
         }).mount('#app');
     </script>

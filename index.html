@@ -49,12 +49,22 @@
                         <option v-for="tag in sysDict.methodTags" :key="tag" :value="tag">{{ tag }}</option>
                     </select>
                 </div>
-                <div class="flex justify-between items-center pt-2">
-                    <label class="text-xs text-gray-500 flex items-center gap-1 cursor-pointer"><input type="checkbox" v-model="selectAll"> 全选</label>
-                    <div class="flex gap-2">
-                        <input type="file" id="importFile" class="hidden" @change="importExcel">
-                        <button @click="triggerImport" class="btn-green px-3 py-1 rounded text-xs font-bold shadow">导入</button>
-                        <button @click="exportExcel" class="btn-blue px-3 py-1 rounded text-xs font-bold shadow">导出选中</button>
+                
+                <div class="pt-3 pb-1 border-t border-gray-800 mt-2 flex justify-between items-end">
+                    <label class="text-xs text-gray-500 flex items-center gap-1 cursor-pointer mb-1"><input type="checkbox" v-model="selectAll"> 全选</label>
+                    <div class="flex flex-col gap-2 items-end">
+                        <div class="flex gap-2 items-center">
+                            <span class="text-[10px] text-gray-500">常规记录表:</span>
+                            <input type="file" id="importFile" class="hidden" @change="importExcel">
+                            <button @click="triggerImport" class="btn-green px-2 py-1 rounded text-[10px] font-bold shadow">导入</button>
+                            <button @click="exportExcel" class="btn-blue px-2 py-1 rounded text-[10px] font-bold shadow">导出</button>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <span class="text-[10px] text-gray-500">仪器MRM表:</span>
+                            <input type="file" id="importMRMFile" class="hidden" @change="importMRMExcel">
+                            <button @click="triggerImportMRM" class="bg-teal-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow">导入</button>
+                            <button @click="exportMRMExcel" class="bg-indigo-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow">导出</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -120,7 +130,7 @@
             <div class="space-y-4">
                 <div><label class="text-xs text-gray-500 block mb-1 font-bold">化合物名称</label>
                 <input v-model="compoundForm.name" type="text" class="w-full rounded px-3 py-2 text-sm outline-none"></div>
-                <div><label class="text-xs text-gray-500 block mb-1 font-bold">化学式 (C, H, O, N, S, P, Na, K)</label>
+                <div><label class="text-xs text-gray-500 block mb-1 font-bold">化学式</label>
                 <input v-model="compoundForm.formula" type="text" placeholder="例如: C10H15NO" class="w-full rounded px-3 py-2 text-sm outline-none font-mono"></div>
                 <div>
                     <label class="text-xs text-gray-500 block mb-1 font-bold">化合物标签 (限3个)</label>
@@ -270,7 +280,6 @@
                 const methodForm = ref({});
                 const atomicMasses = { H: 1.007825, C: 12.000000, N: 14.003074, O: 15.994915, P: 30.973762, S: 31.972071, Na: 22.989770, K: 38.963707 };
                 
-                // 补回了关键的 ID 生成器
                 const genId = () => Date.now().toString() + Math.random().toString(36).substr(2, 5);
 
                 onMounted(async () => {
@@ -351,6 +360,7 @@
                     return m > 0 ? m.toFixed(4) : '';
                 };
 
+                // ---- 常规表导出 ----
                 const exportExcel = () => {
                     if (selectedCompIds.value.length === 0) return alert('请先在左侧勾选需要导出的化合物！');
                     const data = compounds.value.filter(c => selectedCompIds.value.includes(c.id)).flatMap(c => {
@@ -369,11 +379,45 @@
                         });
                     });
                     const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "LCMS_Data");
-                    XLSX.writeFile(wb, `LCMS_方法导出_${new Date().toLocaleDateString()}.xlsx`);
+                    XLSX.writeFile(wb, `常规表导出_${new Date().toLocaleDateString()}.xlsx`);
+                };
+
+                // ---- MRM 仪器表导出 ----
+                const exportMRMExcel = () => {
+                    if (selectedCompIds.value.length === 0) return alert('请先在左侧勾选需要导出的化合物！');
+                    const data = [];
+                    const targetComps = compounds.value.filter(c => selectedCompIds.value.includes(c.id));
+                    
+                    targetComps.forEach(comp => {
+                        const compMethods = methods.value.filter(m => m.compoundId === comp.id);
+                        if (compMethods.length === 0) return; 
+                        
+                        let globalMrmIndex = 1;
+                        compMethods.forEach(m => {
+                            (m.mrms || []).forEach(mrm => {
+                                data.push({
+                                    'Q1': mrm.q1 || '',
+                                    'Q3': mrm.q3 || '',
+                                    '化合物名称': `${comp.name}-${globalMrmIndex}`,
+                                    'DP': mrm.dp || '',
+                                    'CE': mrm.ce || ''
+                                });
+                                globalMrmIndex++;
+                            });
+                        });
+                    });
+                    if (data.length === 0) return alert('选中的化合物没有记录任何MRM参数！');
+                    
+                    const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "MRM_List");
+                    XLSX.writeFile(wb, `仪器MRM表_${new Date().toLocaleDateString()}.xlsx`);
                 };
 
                 const triggerImport = () => document.getElementById('importFile').click();
+                const triggerImportMRM = () => document.getElementById('importMRMFile').click();
 
+                const safeStr = (val) => (val !== undefined && val !== null) ? String(val).trim() : '';
+
+                // ---- 常规表导入 ----
                 const importExcel = (e) => {
                     const f = e.target.files[0]; if(!f) return;
                     const r = new FileReader();
@@ -386,8 +430,6 @@
 
                             let newCompoundsCount = 0; let newMethodsCount = 0; let dictUpdated = false;
 
-                            const safeStr = (val) => (val !== undefined && val !== null) ? String(val).trim() : '';
-
                             json.forEach(row => {
                                 const compName = safeStr(row['化合物名称'] || row['化合物名稱']);
                                 if (!compName) return; 
@@ -396,20 +438,14 @@
                                 const tagCol = row['化合物标签'] || row['化合物標籤'];
                                 if (tagCol) {
                                     rawTags = String(tagCol).split(/[,，;；]/).map(t=>t.trim()).filter(Boolean);
-                                    rawTags.forEach(t => {
-                                        if (!sysDict.value.compTags.includes(t)) { sysDict.value.compTags.push(t); dictUpdated = true; }
-                                    });
+                                    rawTags.forEach(t => { if (!sysDict.value.compTags.includes(t)) { sysDict.value.compTags.push(t); dictUpdated = true; } });
                                 }
 
                                 let methodTag = safeStr(row['应用场景']);
-                                if (methodTag && !sysDict.value.methodTags.includes(methodTag)) {
-                                    sysDict.value.methodTags.push(methodTag); dictUpdated = true;
-                                }
+                                if (methodTag && !sysDict.value.methodTags.includes(methodTag)) { sysDict.value.methodTags.push(methodTag); dictUpdated = true; }
 
                                 let colInfo = safeStr(row['色谱柱']);
-                                if (colInfo && !sysDict.value.columns.includes(colInfo)) {
-                                    sysDict.value.columns.push(colInfo); dictUpdated = true;
-                                }
+                                if (colInfo && !sysDict.value.columns.includes(colInfo)) { sysDict.value.columns.push(colInfo); dictUpdated = true; }
 
                                 let comp = compounds.value.find(c => c.name === compName);
                                 if (!comp) { 
@@ -434,7 +470,7 @@
 
                                     methods.value.push({ 
                                         id: genId(), compoundId: comp.id, 
-                                        methodTag: methodTag || 'Excel导入', 
+                                        methodTag: methodTag || 'Excel常规导入', 
                                         esiApci: 'ESI', adduct: safeStr(row['离子加荷']) || '[M+H]+', 
                                         mrms: parsedMrms, rt: safeStr(row['RT']), 
                                         columnInfo: colInfo, mpA: '', additiveA: '', mpB: '', additiveB: '', flowRate: '', 
@@ -447,19 +483,76 @@
                             if (dictUpdated) await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value)));
                             await localforage.setItem('compounds', JSON.parse(JSON.stringify(compounds.value)));
                             await localforage.setItem('methods', JSON.parse(JSON.stringify(methods.value)));
-                            alert(`导入成功！\n新增/更新化合物: ${newCompoundsCount} 个\n导入分析方法: ${newMethodsCount} 条\n${dictUpdated ? '（检测到新标签/场景/色谱柱，已自动收录）' : ''}`);
+                            alert(`常规表导入成功！\n新增/更新化合物: ${newCompoundsCount} 个\n导入分析方法: ${newMethodsCount} 条\n${dictUpdated ? '（检测到新字典数据，已自动收录）' : ''}`);
                             e.target.value = '';
-                        } catch(err) { 
-                            alert("导入异常: " + err.message); 
-                            console.error(err);
-                        }
+                        } catch(err) { alert("导入异常: " + err.message); }
+                    };
+                    r.readAsArrayBuffer(f);
+                };
+
+                // ---- MRM 仪器表导入 ----
+                const importMRMExcel = (e) => {
+                    const f = e.target.files[0]; if(!f) return;
+                    const r = new FileReader();
+                    r.onload = async (ev) => {
+                        try {
+                            const data = new Uint8Array(ev.target.result);
+                            const wb = XLSX.read(data, { type: 'array' });
+                            const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                            if (json.length === 0) return alert('表格为空！');
+
+                            let newCompoundsCount = 0; let newMethodsCount = 0;
+                            const mrmGroups = {};
+
+                            // 第一遍扫描：剥离尾缀，将 MRM 分组到核心化合物下
+                            json.forEach(row => {
+                                const rawName = safeStr(row['化合物名称'] || row['name'] || row['Name']);
+                                if (!rawName) return;
+
+                                // 使用正则去掉末尾的 "-1", "-2" 等序号
+                                const baseName = rawName.replace(/-\d+$/, '').trim();
+
+                                if (!mrmGroups[baseName]) { mrmGroups[baseName] = []; }
+                                mrmGroups[baseName].push({
+                                    q1: safeStr(row['Q1']),
+                                    q3: safeStr(row['Q3']),
+                                    dp: safeStr(row['DP']),
+                                    ce: safeStr(row['CE'])
+                                });
+                            });
+
+                            // 第二遍执行：写入数据库
+                            for (const baseName in mrmGroups) {
+                                let comp = compounds.value.find(c => c.name === baseName);
+                                if (!comp) {
+                                    comp = { id: genId(), name: baseName, formula: '', tags: [] };
+                                    compounds.value.push(comp);
+                                    newCompoundsCount++;
+                                }
+
+                                methods.value.push({
+                                    id: genId(), compoundId: comp.id,
+                                    methodTag: '机编MRM表导入',
+                                    esiApci: 'ESI', adduct: '[M+H]+',
+                                    mrms: mrmGroups[baseName],
+                                    rt: '', columnInfo: '', mpA: '', additiveA: '', mpB: '', additiveB: '', flowRate: '',
+                                    gradientTable: [{time:'0',b:'5'}], notes: '', image: null
+                                });
+                                newMethodsCount++;
+                            }
+
+                            await localforage.setItem('compounds', JSON.parse(JSON.stringify(compounds.value)));
+                            await localforage.setItem('methods', JSON.parse(JSON.stringify(methods.value)));
+                            alert(`MRM仪器表导入成功！\n新增化合物实体: ${newCompoundsCount} 个\n生成MRM方法组: ${newMethodsCount} 条`);
+                            e.target.value = '';
+                        } catch(err) { alert("导入异常: " + err.message); }
                     };
                     r.readAsArrayBuffer(f);
                 };
 
                 const factoryReset = async () => { if (confirm('此操作将永久清空本地数据库，请确认！')) { await localforage.clear(); window.location.reload(); } };
 
-                return { view, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel, factoryReset };
+                return { view, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel, triggerImportMRM, exportMRMExcel, importMRMExcel, factoryReset };
             }
         }).mount('#app');
     </script>

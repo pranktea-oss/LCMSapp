@@ -360,25 +360,34 @@
                     return m > 0 ? m.toFixed(4) : '';
                 };
 
-                // ---- 常规表导出 ----
+                const safeStr = (val) => (val !== undefined && val !== null) ? String(val).trim() : '';
+
+                // ---- 常规表导出 (严格按照指定格式) ----
                 const exportExcel = () => {
                     if (selectedCompIds.value.length === 0) return alert('请先在左侧勾选需要导出的化合物！');
                     const data = compounds.value.filter(c => selectedCompIds.value.includes(c.id)).flatMap(c => {
                         const ms = methods.value.filter(m => m.compoundId === c.id);
                         const tagsStr = (c.tags || []).join(';');
                         if (ms.length === 0) {
-                            return [{ '选择框': '', '化合物名称': c.name, '化学式': c.formula, '离子加荷': '', 'RT': '', 'Q1': '', 'Q3': '', '化合物标签': tagsStr, '应用场景': '', '色谱柱': '' }];
+                            return [{ '选择框': '', '化合物名称': c.name, '化学式': c.formula, '离子加荷': '', 'RT': '', 'Q1': '', 'Q3': '', '化合物标签': tagsStr, '应用场景': '', '色谱柱': '', '流动相A': '', '流动相B': '', '流速': '', '洗脱梯度': '', '备注': '' }];
                         }
                         return ms.map(m => {
                             const q1 = (m.mrms && m.mrms.length > 0) ? m.mrms[0].q1 : '';
                             const q3Str = (m.mrms || []).map(x => x.q3).filter(Boolean).join(';');
+                            const gradStr = (m.gradientTable || []).map(x => `${x.time}min:${x.b}%`).join(' ; ');
                             return {
-                                '选择框': '', '化合物名称': c.name, '化学式': c.formula, '离子加荷': m.adduct,
-                                'RT': m.rt, 'Q1': q1, 'Q3': q3Str, '化合物标签': tagsStr, '应用场景': m.methodTag, '色谱柱': m.columnInfo || ''
+                                '选择框': '', '化合物名称': c.name, '化学式': c.formula, '离子加荷': m.adduct, 'RT': m.rt, 
+                                'Q1': q1, 'Q3': q3Str, '化合物标签': tagsStr, '应用场景': m.methodTag, 
+                                '色谱柱': m.columnInfo || '', '流动相A': m.additiveA || '', '流动相B': m.additiveB || '', 
+                                '流速': m.flowRate || '', '洗脱梯度': gradStr, '备注': m.notes || ''
                             };
                         });
                     });
-                    const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "LCMS_Data");
+                    
+                    // 强制固定列头顺序
+                    const header = ['选择框', '化合物名称', '化学式', '离子加荷', 'RT', 'Q1', 'Q3', '化合物标签', '应用场景', '色谱柱', '流动相A', '流动相B', '流速', '洗脱梯度', '备注'];
+                    const ws = XLSX.utils.json_to_sheet(data, { header: header }); 
+                    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "LCMS_Data");
                     XLSX.writeFile(wb, `常规表导出_${new Date().toLocaleDateString()}.xlsx`);
                 };
 
@@ -395,13 +404,7 @@
                         let globalMrmIndex = 1;
                         compMethods.forEach(m => {
                             (m.mrms || []).forEach(mrm => {
-                                data.push({
-                                    'Q1': mrm.q1 || '',
-                                    'Q3': mrm.q3 || '',
-                                    '化合物名称': `${comp.name}-${globalMrmIndex}`,
-                                    'DP': mrm.dp || '',
-                                    'CE': mrm.ce || ''
-                                });
+                                data.push({ 'Q1': mrm.q1 || '', 'Q3': mrm.q3 || '', '化合物名称': `${comp.name}-${globalMrmIndex}`, 'DP': mrm.dp || '', 'CE': mrm.ce || '' });
                                 globalMrmIndex++;
                             });
                         });
@@ -415,9 +418,7 @@
                 const triggerImport = () => document.getElementById('importFile').click();
                 const triggerImportMRM = () => document.getElementById('importMRMFile').click();
 
-                const safeStr = (val) => (val !== undefined && val !== null) ? String(val).trim() : '';
-
-                // ---- 常规表导入 ----
+                // ---- 常规表导入 (扩展支持新列) ----
                 const importExcel = (e) => {
                     const f = e.target.files[0]; if(!f) return;
                     const r = new FileReader();
@@ -468,13 +469,29 @@
                                         parsedMrms.push({ q1: q1, q3: '', dp: '', ce: '' });
                                     }
 
+                                    // 解析梯度
+                                    let parsedGradient = [{time: '0', b: '5'}];
+                                    let gradStr = safeStr(row['洗脱梯度']);
+                                    if (gradStr) {
+                                        try {
+                                            const parts = gradStr.split(/[,，;；]/).map(s=>s.trim()).filter(Boolean);
+                                            if(parts.length > 0) {
+                                                parsedGradient = parts.map(p => {
+                                                    const match = p.match(/([\d.]+)\s*min\s*:\s*([\d.]+)\s*%/i);
+                                                    return match ? {time: match[1], b: match[2]} : {time: '0', b: '0'};
+                                                });
+                                            }
+                                        } catch(e){}
+                                    }
+
                                     methods.value.push({ 
                                         id: genId(), compoundId: comp.id, 
                                         methodTag: methodTag || 'Excel常规导入', 
                                         esiApci: 'ESI', adduct: safeStr(row['离子加荷']) || '[M+H]+', 
                                         mrms: parsedMrms, rt: safeStr(row['RT']), 
-                                        columnInfo: colInfo, mpA: '', additiveA: '', mpB: '', additiveB: '', flowRate: '', 
-                                        gradientTable: [{time:'0',b:'5'}], notes: '', image: null 
+                                        columnInfo: colInfo, mpA: '', additiveA: safeStr(row['流动相A']), 
+                                        mpB: '', additiveB: safeStr(row['流动相B']), flowRate: safeStr(row['流速']), 
+                                        gradientTable: parsedGradient, notes: safeStr(row['备注']), image: null 
                                     });
                                     newMethodsCount++;
                                 }
@@ -490,7 +507,7 @@
                     r.readAsArrayBuffer(f);
                 };
 
-                // ---- MRM 仪器表导入 (含极性智能识别) ----
+                // ---- MRM 仪器表导入 ----
                 const importMRMExcel = (e) => {
                     const f = e.target.files[0]; if(!f) return;
                     const r = new FileReader();
@@ -504,20 +521,14 @@
                             let newCompoundsCount = 0; let newMethodsCount = 0;
                             const mrmGroups = {};
 
-                            const safeStr = (val) => (val !== undefined && val !== null) ? String(val).trim() : '';
-
                             json.forEach(row => {
                                 const rawName = safeStr(row['化合物名称'] || row['name'] || row['Name']);
                                 if (!rawName) return;
-
                                 const baseName = rawName.replace(/-\d+$/, '').trim();
 
                                 if (!mrmGroups[baseName]) { mrmGroups[baseName] = []; }
                                 mrmGroups[baseName].push({
-                                    q1: safeStr(row['Q1']),
-                                    q3: safeStr(row['Q3']),
-                                    dp: safeStr(row['DP']),
-                                    ce: safeStr(row['CE'])
+                                    q1: safeStr(row['Q1']), q3: safeStr(row['Q3']), dp: safeStr(row['DP']), ce: safeStr(row['CE'])
                                 });
                             });
 
@@ -525,26 +536,19 @@
                                 let comp = compounds.value.find(c => c.name === baseName);
                                 if (!comp) {
                                     comp = { id: genId(), name: baseName, formula: '', tags: [] };
-                                    compounds.value.push(comp);
-                                    newCompoundsCount++;
+                                    compounds.value.push(comp); newCompoundsCount++;
                                 }
 
-                                // 核心逻辑：智能识别正负离子模式
                                 let autoAdduct = '[M+H]+';
                                 if (mrmGroups[baseName].length > 0) {
                                     const firstDp = parseFloat(mrmGroups[baseName][0].dp);
                                     const firstCe = parseFloat(mrmGroups[baseName][0].ce);
-                                    if (firstDp < 0 || firstCe < 0) {
-                                        autoAdduct = '[M-H]-';
-                                    }
+                                    if (firstDp < 0 || firstCe < 0) { autoAdduct = '[M-H]-'; }
                                 }
 
                                 methods.value.push({
-                                    id: genId(), compoundId: comp.id,
-                                    methodTag: '机编MRM表导入',
-                                    esiApci: 'ESI', 
-                                    adduct: autoAdduct,  // 使用智能识别的加荷
-                                    mrms: mrmGroups[baseName],
+                                    id: genId(), compoundId: comp.id, methodTag: '机编MRM表导入',
+                                    esiApci: 'ESI', adduct: autoAdduct, mrms: mrmGroups[baseName],
                                     rt: '', columnInfo: '', mpA: '', additiveA: '', mpB: '', additiveB: '', flowRate: '',
                                     gradientTable: [{time:'0',b:'5'}], notes: '', image: null
                                 });

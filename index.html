@@ -162,7 +162,7 @@
                         </div>
                     </div>
                     <div class="dark-card p-3 rounded-lg">
-                        <label class="text-[10px] font-bold text-gray-400 block mb-2">MRM 转换</label>
+                        <label class="text-[10px] font-bold text-gray-400 block mb-2">MRM 转换 (多个同分异构体参数)</label>
                         <table class="w-full text-[10px] text-center">
                             <thead class="text-gray-600 border-b border-gray-800"><tr><th>Q1</th><th>Q3</th><th>DP</th><th>CE</th><th></th></tr></thead>
                             <tbody>
@@ -262,7 +262,7 @@
                 const view = ref('list');
                 const compounds = ref([]);
                 const methods = ref([]);
-                const sysDict = ref({ columns: [], compTags: ['类黄酮', '生物碱'], methodTags: ['17min代谢组'] });
+                const sysDict = ref({ columns: [], compTags: ['类黄酮', '生物碱', '核苷酸及衍生物'], methodTags: ['17min代谢组', '25min广谱', 'T3 17min'] });
                 const newDictStr = ref({ columns: '', compTags: '', methodTags: '' });
                 const searchQuery = ref(''); const filterCompTag = ref(''); const filterMethodTag = ref('');
                 const selectedCompIds = ref([]); const currentCompoundId = ref(null);
@@ -348,7 +348,7 @@
                     return m > 0 ? m.toFixed(4) : '';
                 };
 
-                // ---- 核心：定制化导出逻辑 ----
+                // ---- 核心：严格匹配你要求的导出格式 ----
                 const exportExcel = () => {
                     if (selectedCompIds.value.length === 0) return alert('请先在左侧勾选需要导出的化合物！');
                     const data = compounds.value.filter(c => selectedCompIds.value.includes(c.id)).flatMap(c => {
@@ -381,7 +381,7 @@
 
                 const triggerImport = () => document.getElementById('importFile').click();
 
-                // ---- 核心：定制化导入逻辑 (含字典自动生长) ----
+                // ---- 核心：安全防崩溃导入，支持空行、多Q3、自动更新字典 ----
                 const importExcel = (e) => {
                     const f = e.target.files[0]; if(!f) return;
                     const r = new FileReader();
@@ -394,26 +394,29 @@
 
                             let newCompoundsCount = 0; let newMethodsCount = 0; let dictUpdated = false;
 
-                            json.forEach(row => {
-                                const compName = (row['化合物名称'] || row['化合物名稱'])?.toString().trim();
-                                if (!compName) return;
+                            // 极其关键的防崩溃函数：处理所有空行、空单元格
+                            const safeStr = (val) => (val !== undefined && val !== null) ? String(val).trim() : '';
 
-                                // 1. 自动学习字典：标签、场景、色谱柱
+                            json.forEach(row => {
+                                const compName = safeStr(row['化合物名称'] || row['化合物名稱']);
+                                if (!compName) return; // 遇到完全空白的行直接跳过，防止报错
+
+                                // 1. 自动学习字典
                                 let rawTags = [];
                                 const tagCol = row['化合物标签'] || row['化合物標籤'];
                                 if (tagCol) {
-                                    rawTags = tagCol.toString().split(/[,，;；]/).map(t=>t.trim()).filter(Boolean);
+                                    rawTags = String(tagCol).split(/[,，;；]/).map(t=>t.trim()).filter(Boolean);
                                     rawTags.forEach(t => {
                                         if (!sysDict.value.compTags.includes(t)) { sysDict.value.compTags.push(t); dictUpdated = true; }
                                     });
                                 }
 
-                                let methodTag = row['应用场景']?.toString().trim() || '';
+                                let methodTag = safeStr(row['应用场景']);
                                 if (methodTag && !sysDict.value.methodTags.includes(methodTag)) {
                                     sysDict.value.methodTags.push(methodTag); dictUpdated = true;
                                 }
 
-                                let colInfo = row['色谱柱']?.toString().trim() || '';
+                                let colInfo = safeStr(row['色谱柱']);
                                 if (colInfo && !sysDict.value.columns.includes(colInfo)) {
                                     sysDict.value.columns.push(colInfo); dictUpdated = true;
                                 }
@@ -421,17 +424,17 @@
                                 // 2. 化合物入库
                                 let comp = compounds.value.find(c => c.name === compName);
                                 if (!comp) { 
-                                    comp = { id: genId(), name: compName, formula: row['化学式']?.toString().trim()||'', tags: rawTags }; 
+                                    comp = { id: genId(), name: compName, formula: safeStr(row['化学式']), tags: rawTags }; 
                                     compounds.value.push(comp); newCompoundsCount++; 
                                 } else {
                                     const newTags = new Set([...(comp.tags||[]), ...rawTags]);
                                     comp.tags = Array.from(newTags).slice(0, 3);
                                 }
 
-                                // 3. 方法入库及 Q1/Q3 解析
-                                if (row['Q1'] || row['Q3'] || row['RT']) {
-                                    let q1 = row['Q1']?.toString().trim() || '';
-                                    let q3Str = row['Q3']?.toString().trim() || '';
+                                // 3. 方法入库及 Q1/Q3 智能拆分
+                                if (row['Q1'] !== undefined || row['Q3'] !== undefined || row['RT'] !== undefined) {
+                                    let q1 = safeStr(row['Q1']);
+                                    let q3Str = safeStr(row['Q3']);
                                     let q3Array = q3Str.split(/[,，;；]/).map(x=>x.trim()).filter(Boolean);
                                     
                                     let parsedMrms = [];
@@ -444,8 +447,8 @@
                                     methods.value.push({ 
                                         id: genId(), compoundId: comp.id, 
                                         methodTag: methodTag || 'Excel导入', 
-                                        esiApci: 'ESI', adduct: row['离子加荷']?.toString().trim() || '[M+H]+', 
-                                        mrms: parsedMrms, rt: row['RT']?.toString().trim() || '', 
+                                        esiApci: 'ESI', adduct: safeStr(row['离子加荷']) || '[M+H]+', 
+                                        mrms: parsedMrms, rt: safeStr(row['RT']), 
                                         columnInfo: colInfo, mpA: '', additiveA: '', mpB: '', additiveB: '', flowRate: '', 
                                         gradientTable: [{time:'0',b:'5'}], notes: '', image: null 
                                     });
@@ -456,9 +459,12 @@
                             if (dictUpdated) await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value)));
                             await localforage.setItem('compounds', JSON.parse(JSON.stringify(compounds.value)));
                             await localforage.setItem('methods', JSON.parse(JSON.stringify(methods.value)));
-                            alert(`导入成功！\n新增/更新化合物: ${newCompoundsCount} 个\n导入分析方法: ${newMethodsCount} 条\n${dictUpdated ? '（检测到新标签/场景/色谱柱，已自动收录入字典）' : ''}`);
+                            alert(`导入成功！\n新增/更新化合物: ${newCompoundsCount} 个\n导入分析方法: ${newMethodsCount} 条\n${dictUpdated ? '（检测到新标签/场景/色谱柱，已自动收录）' : ''}`);
                             e.target.value = '';
-                        } catch(err) { alert("导入格式错误，请确保列名与导出的模板严格一致。"); }
+                        } catch(err) { 
+                            alert("导入异常: " + err.message); 
+                            console.error(err);
+                        }
                     };
                     r.readAsArrayBuffer(f);
                 };

@@ -23,7 +23,11 @@
         input, textarea, select { background-color: #2b2b2b !important; color: #e0e0e0 !important; border: 1px solid #444 !important; user-select: auto !important; }
         .btn-blue { background-color: #314d71; color: #ffffff; }
         .btn-green { background-color: #2d5a3f; color: #ffffff; }
-        tbody tr:hover { background-color: #2d2d2e !important; }
+        /* 针对列表项的悬停效果 */
+        .list-item:active { background-color: #2d2d2e; }
+        /* 展开动画 */
+        .expand-enter-active, .expand-leave-active { transition: all 0.2s ease; max-height: 500px; opacity: 1; overflow: hidden; }
+        .expand-enter-from, .expand-leave-to { max-height: 0; opacity: 0; }
     </style>
 </head>
 <body class="antialiased">
@@ -61,13 +65,13 @@
                     <label class="text-xs text-gray-500 flex items-center gap-1 cursor-pointer mb-1"><input type="checkbox" v-model="selectAll"> 全选</label>
                     <div class="flex flex-col gap-2 items-end">
                         <div class="flex gap-2 items-center">
-                            <span class="text-[10px] text-gray-500">常规记录表:</span>
+                            <span class="text-[10px] text-gray-500">常规:</span>
                             <input type="file" id="importFile" class="hidden" @change="importExcel">
                             <button @click="triggerImport" class="btn-green px-2 py-1 rounded text-[10px] font-bold shadow">导入</button>
                             <button @click="exportExcel" class="btn-blue px-2 py-1 rounded text-[10px] font-bold shadow">导出</button>
                         </div>
                         <div class="flex gap-2 items-center">
-                            <span class="text-[10px] text-gray-500">仪器MRM表:</span>
+                            <span class="text-[10px] text-gray-500">仪器:</span>
                             <input type="file" id="importMRMFile" class="hidden" @change="importMRMExcel">
                             <button @click="triggerImportMRM" class="bg-teal-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow">导入</button>
                             <button @click="exportMRMExcel" class="bg-indigo-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow">导出</button>
@@ -76,26 +80,67 @@
                 </div>
             </div>
 
-            <div class="overflow-hidden rounded-lg border border-gray-800">
-                <table class="w-full text-sm text-left">
-                    <thead class="text-xs text-gray-400 uppercase" style="background-color: #222223;">
-                        <tr><th class="p-3 w-8"></th><th class="p-3">化合物名称</th><th class="p-3 text-center">方法数</th></tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-800">
-                        <tr v-for="comp in filteredCompounds" :key="comp.id" @click="goToCompoundDetail(comp.id)">
-                            <td class="p-3" @click.stop><input type="checkbox" v-model="selectedCompIds" :value="comp.id"></td>
-                            <td class="p-3">
-                                <div class="font-bold text-gray-200">{{ comp.name }}</div>
-                                <div class="text-[10px] text-gray-500 font-mono">{{ comp.formula }}</div>
-                                <div class="flex gap-1 mt-1">
-                                    <span v-for="t in (comp.tags || [])" :key="t" class="bg-gray-800 text-[9px] px-1 py-0.5 rounded border border-gray-700">{{t}}</span>
+            <div class="space-y-3">
+                <div v-if="filteredCompounds.length === 0" class="text-center py-10 text-gray-500 text-sm">暂无数据</div>
+                
+                <div v-for="comp in filteredCompounds" :key="comp.id" class="dark-card rounded-lg overflow-hidden list-item transition-colors" @click="goToCompoundDetail(comp.id)">
+                    <div class="p-3">
+                        <div class="flex items-start gap-3">
+                            <div class="pt-1" @click.stop>
+                                <input type="checkbox" v-model="selectedCompIds" :value="comp.id" class="w-4 h-4 rounded border-gray-600">
+                            </div>
+                            
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex-1 mr-2 min-w-0">
+                                        <div class="text-base font-bold text-gray-100 truncate leading-tight mb-1">{{ comp.name }}</div>
+                                        <div class="flex items-center gap-3 text-[10px] text-gray-500 font-mono leading-none">
+                                            <span class="truncate max-w-[80px]">{{ comp.formula }}</span>
+                                            <span class="text-gray-600">|</span>
+                                            <span>{{ calculateMass(comp.formula) }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col items-end gap-1">
+                                        <div class="flex gap-1">
+                                            <span v-for="t in (comp.tags || []).slice(0,2)" :key="t" class="bg-blue-900/30 text-blue-300 border border-blue-800 text-[9px] px-1 rounded">{{t}}</span>
+                                        </div>
+                                        <span class="w-5 h-5 rounded-full border border-gray-600 bg-gray-800 text-gray-400 text-[10px] flex items-center justify-center font-mono">{{ getMethodCount(comp.id) }}</span>
+                                    </div>
                                 </div>
-                            </td>
-                            <td class="p-3 text-center"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded-full border border-gray-700">{{ getMethodCount(comp.id) }}</span></td>
-                        </tr>
-                    </tbody>
-                </table>
+
+                                <div class="flex justify-between items-end border-t border-gray-800 pt-2">
+                                    <div class="flex items-center gap-3 text-[11px] font-mono text-gray-400">
+                                        <span :class="getPrimaryMethod(comp.id).adduct?.includes('-') ? 'text-red-400' : 'text-green-400'">{{ getPrimaryMethod(comp.id).adduct || '-' }}</span>
+                                        <div class="flex gap-1 items-center">
+                                            <span class="text-gray-300 font-bold">{{ getPrimaryMethod(comp.id).q1 || '-' }}</span>
+                                            <span class="text-gray-600 text-[9px]">►</span>
+                                            <span class="text-gray-300">{{ getPrimaryMethod(comp.id).q3s || '-' }}</span>
+                                        </div>
+                                    </div>
+                                    <button @click.stop="toggleExpand(comp.id)" class="w-8 h-6 flex items-center justify-center rounded bg-gray-800 hover:bg-gray-700 text-gray-400 text-lg leading-none pb-1 transition-colors">
+                                        {{ expandedIds.has(comp.id) ? '−' : '+' }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="expandedIds.has(comp.id)" class="bg-black/40 border-t border-gray-800 p-2 space-y-1">
+                        <div v-if="getMethodCount(comp.id) === 0" class="text-center text-[10px] text-gray-600 py-1">暂无方法详情</div>
+                        <div v-for="m in getCompMethods(comp.id)" :key="m.id" class="grid grid-cols-12 gap-1 text-[10px] text-gray-400 items-center px-2 py-1 rounded hover:bg-white/5">
+                            <div class="col-span-3 truncate text-gray-500">{{ m.methodTag }}</div>
+                            <div class="col-span-2 text-center" :class="m.adduct?.includes('-')?'text-red-500':'text-green-500'">{{ m.adduct }}</div>
+                            <div class="col-span-7 font-mono flex flex-col">
+                                <div v-for="(pair, idx) in m.mrms" :key="idx" class="flex justify-between border-b border-gray-800 last:border-0 py-0.5">
+                                    <span>{{ pair.q1 }} <span class="text-gray-600">→</span> {{ pair.q3 }}</span>
+                                    <span class="text-gray-600 transform scale-90 origin-right">DP:{{pair.dp}} CE:{{pair.ce}}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+            
             <button @click="goToAddCompound" class="fixed bottom-8 right-6 btn-blue w-14 h-14 rounded-full shadow-2xl text-3xl flex items-center justify-center active:scale-90 transition-transform">+</button>
         </main>
 
@@ -108,15 +153,13 @@
                     <p>理论精确质量: <span class="text-gray-200 font-bold">{{ calculateMass(currentCompound.formula) || '-' }}</span></p>
                 </div>
             </div>
-
             <div class="flex justify-between items-center border-b border-gray-800 pb-2 mt-6">
                 <h3 class="text-sm font-bold text-gray-300 uppercase tracking-widest">方法库列表</h3>
                 <button @click="goToAddMethod" class="btn-blue px-3 py-1 rounded text-xs font-bold shadow">+ 新增实验方法</button>
             </div>
-
             <div v-for="method in currentCompoundMethods" :key="method.id" class="dark-card rounded-lg p-4 relative cursor-pointer hover:border-gray-500" @click="goToEditMethod(method)">
                 <div class="flex justify-between items-start mb-2">
-                    <span class="bg-indigo-900/30 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800/50 text-[10px] font-bold">{{ method.methodTag || '未分类场景' }}</span>
+                    <span class="bg-indigo-900/30 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800/50 text-[10px] font-bold">{{ method.methodTag || '未分类' }}</span>
                     <span class="text-[10px] text-gray-500">{{ method.esiApci }} / <span :class="{'text-red-400 font-bold': method.adduct === '[M-H]-'}">{{ method.adduct }}</span></span>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-xs mb-3">
@@ -137,8 +180,8 @@
             <div class="space-y-4">
                 <div><label class="text-xs text-gray-500 block mb-1 font-bold">化合物名称</label>
                 <input v-model="compoundForm.name" type="text" class="w-full rounded px-3 py-2 text-sm outline-none"></div>
-                <div><label class="text-xs text-gray-500 block mb-1 font-bold">化学式 (C, H, O, N, S, P, Na, K)</label>
-                <input v-model="compoundForm.formula" type="text" placeholder="例如: C10H15NO" class="w-full rounded px-3 py-2 text-sm outline-none font-mono"></div>
+                <div><label class="text-xs text-gray-500 block mb-1 font-bold">化学式</label>
+                <input v-model="compoundForm.formula" type="text" class="w-full rounded px-3 py-2 text-sm outline-none font-mono"></div>
                 <div>
                     <label class="text-xs text-gray-500 block mb-1 font-bold">化合物标签 (限3个)</label>
                     <div class="flex flex-wrap gap-2 mb-2">
@@ -165,7 +208,6 @@
                     <option v-for="tag in sysDict.methodTags" :key="tag" :value="tag">{{ tag }}</option>
                 </select>
             </div>
-
             <div class="space-y-6">
                 <section>
                     <h4 class="text-xs font-bold text-gray-500 mb-3 border-l-4 border-blue-500 pl-2">质谱参数 (MS)</h4>
@@ -195,7 +237,6 @@
                         <button @click="methodForm.mrms.push({q1:'',q3:'',dp:'',ce:''})" class="text-blue-400 text-[10px] mt-2 font-bold underline">+ 添加多一组 MRM</button>
                     </div>
                 </section>
-
                 <section>
                     <h4 class="text-xs font-bold text-gray-500 mb-3 border-l-4 border-green-500 pl-2">色谱参数 (LC)</h4>
                     <div class="space-y-3">
@@ -227,7 +268,6 @@
                         </div>
                     </div>
                 </section>
-
                 <section>
                     <h4 class="text-xs font-bold text-gray-500 mb-3 border-l-4 border-orange-500 pl-2">备注与附件</h4>
                     <textarea v-model="methodForm.notes" rows="2" placeholder="填写实验备注..." class="w-full rounded px-3 py-2 text-xs outline-none"></textarea>
@@ -241,7 +281,6 @@
                     </div>
                 </section>
             </div>
-
             <div class="pt-10 space-y-3">
                 <button @click="saveMethod" class="w-full btn-blue py-3.5 rounded-lg font-bold shadow-xl">保存当前所有参数</button>
                 <button v-if="methodForm.id" @click="deleteMethod" class="w-full text-red-400 py-2 text-xs font-bold">删除该分析方法</button>
@@ -273,7 +312,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
         }
-        const { createApp, ref, computed, onMounted } = Vue;
+        const { createApp, ref, computed, onMounted, reactive } = Vue;
         createApp({
             setup() {
                 const view = ref('list');
@@ -282,12 +321,30 @@
                 const sysDict = ref({ columns: [], compTags: ['类黄酮', '生物碱', '核苷酸及衍生物'], methodTags: ['17min代谢组', '25min广谱', 'T3 17min'] });
                 const newDictStr = ref({ columns: '', compTags: '', methodTags: '' });
                 const searchQuery = ref(''); const filterCompTag = ref(''); const filterMethodTag = ref('');
-                const sortBy = ref('time'); // 默认按最新添加时间排序
+                const sortBy = ref('time'); 
                 const selectedCompIds = ref([]); const currentCompoundId = ref(null);
                 const compoundForm = ref({ id: null, name: '', formula: '', tags: [] });
                 const methodForm = ref({});
                 const atomicMasses = { H: 1.007825, C: 12.000000, N: 14.003074, O: 15.994915, P: 30.973762, S: 31.972071, Na: 22.989770, K: 38.963707 };
                 
+                // 新增：控制展开状态的集合
+                const expandedIds = reactive(new Set());
+                const toggleExpand = (id) => {
+                    if (expandedIds.has(id)) expandedIds.delete(id);
+                    else expandedIds.add(id);
+                };
+
+                // 获取卡片摘要显示用的“第一个方法”
+                const getPrimaryMethod = (compId) => {
+                    const ms = methods.value.filter(m => m.compoundId === compId);
+                    if (ms.length === 0) return {};
+                    const first = ms[0];
+                    const q3Str = (first.mrms || []).map(m => m.q3).join(' | ');
+                    return { adduct: first.adduct, q1: (first.mrms?.[0]?.q1), q3s: q3Str };
+                };
+
+                const getCompMethods = (compId) => methods.value.filter(m => m.compoundId === compId);
+
                 const genId = () => Date.now().toString() + Math.random().toString(36).substr(2, 5);
 
                 onMounted(async () => {
@@ -315,13 +372,12 @@
                         } else if (sortBy.value === 'mass') {
                             const massA = parseFloat(calculateMass(a.formula)) || 0;
                             const massB = parseFloat(calculateMass(b.formula)) || 0;
-                            return massB - massA; // 分子量降序（从大到小）
+                            return massB - massA; 
                         } else if (sortBy.value === 'massAsc') {
                             const massA = parseFloat(calculateMass(a.formula)) || 0;
                             const massB = parseFloat(calculateMass(b.formula)) || 0;
-                            return massA - massB; // 分子量升序（从小到大）
+                            return massA - massB; 
                         } else {
-                            // time 排序：因为 id 是基于 Date.now() 生成的时间戳字符串，直接倒序对比即可
                             return (b.id || '').localeCompare(a.id || '');
                         }
                     });
@@ -588,7 +644,7 @@
 
                 const factoryReset = async () => { if (confirm('此操作将永久清空本地数据库，请确认！')) { await localforage.clear(); window.location.reload(); } };
 
-                return { view, sortBy, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel, triggerImportMRM, exportMRMExcel, importMRMExcel, factoryReset };
+                return { view, expandedIds, toggleExpand, getPrimaryMethod, getCompMethods, sortBy, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel, triggerImportMRM, exportMRMExcel, importMRMExcel, factoryReset };
             }
         }).mount('#app');
     </script>

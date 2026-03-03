@@ -23,10 +23,14 @@
         input, textarea, select { background-color: #2b2b2b !important; color: #e0e0e0 !important; border: 1px solid #444 !important; user-select: auto !important; }
         .btn-blue { background-color: #314d71; color: #ffffff; }
         .btn-green { background-color: #2d5a3f; color: #ffffff; }
-        /* 列表卡片交互效果 */
-        .comp-card:active { background-color: #2d2d2e; }
-        .expand-enter-active, .expand-leave-active { transition: all 0.3s ease; max-height: 500px; opacity: 1; }
-        .expand-enter-from, .expand-leave-to { max-height: 0; opacity: 0; }
+        .list-item:active { background-color: #2d2d2e; }
+        /* 强制表格布局对齐 */
+        .grid-layout { 
+            display: grid; 
+            grid-template-columns: 20px 2fr 1fr 1fr 1.2fr 20px; 
+            gap: 8px; 
+            align-items: center; 
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -39,20 +43,20 @@
             </div>
         </header>
 
-        <main v-if="view === 'list'" class="p-4">
-            <div class="mb-4 space-y-3">
-                <input v-model="searchQuery" type="text" placeholder="搜索化合物..." class="w-full rounded px-3 py-2 text-sm outline-none">
+        <main v-if="view === 'list'" class="p-2">
+            <div class="mb-3 space-y-2 p-2">
+                <input v-model="searchQuery" type="text" placeholder="搜索化合物..." class="w-full rounded px-3 py-2 text-sm outline-none border border-gray-700">
                 
                 <div class="grid grid-cols-3 gap-2 text-[11px]">
-                    <select v-model="filterCompTag" class="rounded px-1 py-1.5 outline-none">
+                    <select v-model="filterCompTag" class="rounded px-1 py-1.5 outline-none border border-gray-700">
                         <option value="">所有标签</option>
                         <option v-for="tag in sysDict.compTags" :key="tag" :value="tag">{{ tag }}</option>
                     </select>
-                    <select v-model="filterMethodTag" class="rounded px-1 py-1.5 outline-none">
+                    <select v-model="filterMethodTag" class="rounded px-1 py-1.5 outline-none border border-gray-700">
                         <option value="">所有场景</option>
                         <option v-for="tag in sysDict.methodTags" :key="tag" :value="tag">{{ tag }}</option>
                     </select>
-                    <select v-model="sortBy" class="rounded px-1 py-1.5 outline-none font-bold">
+                    <select v-model="sortBy" class="rounded px-1 py-1.5 outline-none font-bold border border-gray-700">
                         <option value="time">最新添加</option>
                         <option value="name">名称 (A-Z)</option>
                         <option value="mass">质量 (大到小)</option>
@@ -60,88 +64,67 @@
                     </select>
                 </div>
                 
-                <div class="pt-3 pb-1 border-t border-gray-800 mt-2 flex justify-between items-end">
-                    <label class="text-xs text-gray-500 flex items-center gap-1 cursor-pointer mb-1"><input type="checkbox" v-model="selectAll"> 全选</label>
-                    <div class="flex flex-col gap-2 items-end">
-                        <div class="flex gap-2 items-center">
-                            <span class="text-[10px] text-gray-500">常规:</span>
-                            <input type="file" id="importFile" class="hidden" @change="importExcel">
-                            <button @click="triggerImport" class="btn-green px-2 py-1 rounded text-[10px] font-bold shadow">导入</button>
-                            <button @click="exportExcel" class="btn-blue px-2 py-1 rounded text-[10px] font-bold shadow">导出</button>
+                <div class="pt-2 flex justify-between items-center">
+                    <label class="text-xs text-gray-500 flex items-center gap-1 cursor-pointer"><input type="checkbox" v-model="selectAll"> 全选</label>
+                    <div class="flex gap-2">
+                        <input type="file" id="importFile" class="hidden" @change="importExcel">
+                        <input type="file" id="importMRMFile" class="hidden" @change="importMRMExcel">
+                        <div class="flex gap-1">
+                            <button @click="triggerImport" class="bg-gray-700 text-white px-2 py-1 rounded text-[10px]">常入</button>
+                            <button @click="exportExcel" class="bg-gray-700 text-white px-2 py-1 rounded text-[10px]">常出</button>
                         </div>
-                        <div class="flex gap-2 items-center">
-                            <span class="text-[10px] text-gray-500">仪器:</span>
-                            <input type="file" id="importMRMFile" class="hidden" @change="importMRMExcel">
-                            <button @click="triggerImportMRM" class="bg-teal-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow">导入</button>
-                            <button @click="exportMRMExcel" class="bg-indigo-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow">导出</button>
+                        <div class="flex gap-1">
+                            <button @click="triggerImportMRM" class="btn-green px-2 py-1 rounded text-[10px]">机入</button>
+                            <button @click="exportMRMExcel" class="btn-blue px-2 py-1 rounded text-[10px]">机出</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="space-y-3 pb-20">
-                <div v-if="filteredCompounds.length === 0" class="text-center py-10 text-gray-500 text-sm">暂无符合条件的记录</div>
+            <div class="space-y-2">
+                <div v-if="filteredCompounds.length === 0" class="text-center py-10 text-gray-500 text-sm">暂无数据</div>
                 
-                <div v-for="comp in filteredCompounds" :key="comp.id" class="dark-card rounded-lg overflow-hidden comp-card transition-colors" @click="goToCompoundDetail(comp.id)">
-                    <div class="p-3">
-                        <div class="flex items-start gap-3">
-                            <div class="pt-1" @click.stop>
+                <div v-for="comp in filteredCompounds" :key="comp.id" class="dark-card rounded-md overflow-hidden list-item" @click="goToCompoundDetail(comp.id)">
+                    <div class="p-2">
+                        <div class="grid-layout">
+                            <div class="row-span-2 flex items-center justify-center" @click.stop>
                                 <input type="checkbox" v-model="selectedCompIds" :value="comp.id" class="w-4 h-4 rounded border-gray-600 bg-gray-700">
                             </div>
-                            
-                            <div class="flex-1 min-w-0">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div class="mr-2 min-w-0">
-                                        <div class="text-base font-bold text-gray-100 leading-tight mb-1 break-words line-clamp-2">{{ comp.name }}</div>
-                                        <div class="flex items-center gap-3 text-[10px] text-gray-500 font-mono">
-                                            <span class="text-gray-400">{{ comp.formula || '无化学式' }}</span>
-                                            <span class="text-gray-700">|</span>
-                                            <span class="text-gray-400">{{ calculateMass(comp.formula) }}</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="flex flex-col items-end gap-1 flex-shrink-0">
-                                        <div class="flex gap-1 flex-wrap justify-end max-w-[100px]">
-                                            <span v-for="t in (comp.tags || []).slice(0,2)" :key="t" class="bg-blue-900/30 text-blue-300 border border-blue-800 text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap">{{t}}</span>
-                                        </div>
-                                        <span class="w-5 h-5 rounded-full border border-gray-600 bg-gray-800 text-gray-400 text-[10px] flex items-center justify-center font-mono mt-1 shadow-sm">{{ getMethodCount(comp.id) }}</span>
-                                    </div>
-                                </div>
 
-                                <div class="flex justify-between items-center border-t border-gray-800 pt-2 mt-1">
-                                    <div class="flex items-center gap-3 text-[11px] font-mono text-gray-400 overflow-hidden">
-                                        <span :class="getPrimaryMethod(comp.id).adduct?.includes('-') ? 'text-red-400 font-bold' : 'text-green-400 font-bold'">
-                                            {{ getPrimaryMethod(comp.id).adduct || '-' }}
-                                        </span>
-                                        <div class="flex gap-1 items-center truncate">
-                                            <span class="text-gray-200 font-bold">{{ getPrimaryMethod(comp.id).q1 || '-' }}</span>
-                                            <span class="text-gray-600 text-[9px]">▶</span>
-                                            <span class="text-gray-400 truncate">{{ getPrimaryMethod(comp.id).q3s || '-' }}</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <button @click.stop="toggleExpand(comp.id)" class="w-8 h-7 flex items-center justify-center rounded bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-lg leading-none pb-1 ml-2 transition-all active:scale-90">
-                                        {{ expandedIds.has(comp.id) ? '−' : '+' }}
-                                    </button>
-                                </div>
+                            <div class="row-span-2 text-sm font-bold text-gray-200 leading-tight break-words pr-1">
+                                {{ comp.name }}
+                            </div>
+
+                            <div class="text-[10px] text-gray-500 font-mono truncate text-center border-b border-gray-800 pb-1">{{ comp.formula || '-' }}</div>
+                            <div class="text-[10px] text-gray-500 font-mono text-center border-b border-gray-800 pb-1">{{ calculateMass(comp.formula) || '-' }}</div>
+                            <div class="text-[10px] text-gray-400 text-center truncate border-b border-gray-800 pb-1">{{ (comp.tags||[])[0] || '-' }}</div>
+                            <div class="flex justify-center border-b border-gray-800 pb-1">
+                                <span class="w-4 h-4 rounded-full border border-gray-600 text-[10px] flex items-center justify-center">{{ getMethodCount(comp.id) }}</span>
+                            </div>
+
+                            <div class="text-[10px] font-mono text-center font-bold" 
+                                 :class="getPrimaryMethod(comp.id).adduct?.includes('-') ? 'text-red-400' : 'text-green-400'">
+                                {{ getPrimaryMethod(comp.id).adduct || '-' }}
+                            </div>
+                            <div class="text-[10px] text-gray-300 font-mono text-center">{{ getPrimaryMethod(comp.id).q1 || '-' }}</div>
+                            <div class="text-[10px] text-gray-300 font-mono text-center truncate">{{ getPrimaryMethod(comp.id).q3s || '-' }}</div>
+                            <div class="flex justify-center">
+                                <button @click.stop="toggleExpand(comp.id)" class="text-gray-400 font-bold hover:text-white text-lg leading-none">
+                                    {{ expandedIds.has(comp.id) ? '−' : '+' }}
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    <div v-if="expandedIds.has(comp.id)" class="bg-black/30 border-t border-gray-800 p-2 space-y-1 shadow-inner">
-                        <div v-if="getMethodCount(comp.id) === 0" class="text-center text-[10px] text-gray-600 py-2">该化合物暂无方法记录</div>
-                        
-                        <div v-for="m in getCompMethods(comp.id)" :key="m.id" class="grid grid-cols-12 gap-2 text-[10px] text-gray-400 items-start px-2 py-2 rounded border border-transparent hover:border-gray-700 hover:bg-gray-800/50 transition-colors cursor-pointer" @click.stop="goToEditMethod(m)">
-                            <div class="col-span-3 text-blue-400 font-bold truncate">{{ m.methodTag || '通用' }}</div>
+                    <div v-if="expandedIds.has(comp.id)" class="bg-black/30 border-t border-gray-700 px-2 py-1">
+                        <div v-if="getMethodCount(comp.id) === 0" class="text-center text-[10px] text-gray-600 py-1">无方法</div>
+                        <div v-for="m in getCompMethods(comp.id)" :key="m.id" class="grid grid-cols-12 gap-1 text-[10px] text-gray-400 border-b border-gray-800 last:border-0 py-1 items-center">
+                            <div class="col-span-3 truncate text-gray-500">{{ m.methodTag }}</div>
                             <div class="col-span-2 text-center" :class="m.adduct?.includes('-')?'text-red-500':'text-green-500'">{{ m.adduct }}</div>
-                            <div class="col-span-7 font-mono flex flex-col gap-1">
-                                <div v-for="(pair, idx) in m.mrms" :key="idx" class="flex justify-between items-center border-b border-gray-800/50 last:border-0 pb-0.5">
-                                    <span>
-                                        <span class="text-gray-300">{{ pair.q1 }}</span>
-                                        <span class="text-gray-600 mx-0.5">→</span>
-                                        <span class="text-gray-300">{{ pair.q3 }}</span>
-                                    </span>
-                                    <span class="text-gray-600 text-[9px] scale-90 origin-right">DP:{{pair.dp}} CE:{{pair.ce}}</span>
+                            <div class="col-span-7 font-mono">
+                                <div v-for="(pair, idx) in m.mrms" :key="idx" class="flex justify-between">
+                                    <span>{{ pair.q1 }} → {{ pair.q3 }}</span>
+                                    <span class="text-gray-600 scale-90">DP:{{pair.dp}} CE:{{pair.ce}}</span>
                                 </div>
                             </div>
                         </div>
@@ -149,28 +132,39 @@
                 </div>
             </div>
             
-            <button @click="goToAddCompound" class="fixed bottom-8 right-6 btn-blue w-14 h-14 rounded-full shadow-2xl text-3xl flex items-center justify-center active:scale-90 transition-transform z-50">+</button>
+            <button @click="goToAddCompound" class="fixed bottom-8 right-6 btn-blue w-14 h-14 rounded-full shadow-2xl text-3xl flex items-center justify-center active:scale-90 transition-transform">+</button>
         </main>
 
         <main v-if="view === 'compoundDetail' && currentCompound" class="p-4 space-y-4">
             <div class="dark-card rounded-lg p-5 relative shadow-lg">
                 <button @click="goToEditCompound" class="absolute top-4 right-4 text-blue-400 text-xs font-bold">编辑</button>
-                <h2 class="text-2xl font-bold text-gray-100 mb-2">{{ currentCompound.name }}</h2>
+                <h2 class="text-xl font-bold text-gray-100 mb-1 break-words pr-8">{{ currentCompound.name }}</h2>
+                <div class="flex gap-2 mb-2">
+                    <span v-for="t in currentCompound.tags" :key="t" class="bg-gray-800 text-[10px] px-1 rounded text-gray-400 border border-gray-700">{{t}}</span>
+                </div>
                 <div class="text-xs font-mono space-y-1 text-gray-400">
-                    <p>化学式: <span class="text-gray-200">{{ currentCompound.formula || '-' }}</span></p>
-                    <p>质量: <span class="text-gray-200 font-bold">{{ calculateMass(currentCompound.formula) || '-' }}</span></p>
+                    <p>Formula: <span class="text-gray-200">{{ currentCompound.formula }}</span></p>
+                    <p>Mass: <span class="text-gray-200">{{ calculateMass(currentCompound.formula) }}</span></p>
                 </div>
             </div>
-            <div class="flex justify-between items-center border-b border-gray-800 pb-2 mt-6">
-                <h3 class="text-sm font-bold text-gray-300">方法库列表</h3>
-                <button @click="goToAddMethod" class="btn-blue px-3 py-1 rounded text-xs font-bold">+ 新增</button>
+            <div class="flex justify-between items-center border-b border-gray-800 pb-2 mt-4">
+                <h3 class="text-sm font-bold text-gray-300">方法列表</h3>
+                <button @click="goToAddMethod" class="text-blue-400 text-xs font-bold">+ 新增</button>
             </div>
-            <div v-for="method in currentCompoundMethods" :key="method.id" class="dark-card rounded-lg p-4 relative cursor-pointer hover:border-gray-500" @click="goToEditMethod(method)">
-                <div class="flex justify-between mb-2">
-                    <span class="text-indigo-300 text-[10px] font-bold">{{ method.methodTag }}</span>
+            <div v-for="method in currentCompoundMethods" :key="method.id" class="dark-card rounded-lg p-3 relative cursor-pointer hover:border-gray-500" @click="goToEditMethod(method)">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="bg-blue-900/30 text-blue-300 px-1 rounded text-[10px]">{{ method.methodTag }}</span>
                     <span class="text-[10px] text-gray-500">{{ method.esiApci }} / {{ method.adduct }}</span>
                 </div>
-                <div class="text-xs text-gray-400">RT: <span class="text-white">{{ method.rt }}</span> | {{ method.columnInfo }}</div>
+                <div class="text-xs text-gray-400 mb-2">
+                    RT: <span class="text-gray-200">{{ method.rt }}</span> | Col: {{ method.columnInfo }}
+                </div>
+                <div class="grid grid-cols-1 gap-1 border-t border-gray-800 pt-1">
+                    <div v-for="mrm in method.mrms" class="text-[10px] font-mono text-gray-300 flex justify-between">
+                        <span>{{ mrm.q1 }} → {{ mrm.q3 }}</span>
+                        <span class="text-gray-600">DP:{{mrm.dp}} CE:{{mrm.ce}}</span>
+                    </div>
+                </div>
             </div>
         </main>
 
@@ -178,99 +172,121 @@
             <h3 class="font-bold text-gray-300 border-b border-gray-800 pb-2">编辑化合物</h3>
             <div class="space-y-4">
                 <div><label class="text-xs text-gray-500 block mb-1">名称</label><input v-model="compoundForm.name" class="w-full rounded px-3 py-2 text-sm outline-none"></div>
-                <div><label class="text-xs text-gray-500 block mb-1">化学式</label><input v-model="compoundForm.formula" class="w-full rounded px-3 py-2 text-sm outline-none"></div>
-                <div><label class="text-xs text-gray-500 block mb-1">标签</label>
-                    <div class="flex gap-2 mb-2"><span v-for="(t,i) in (compoundForm.tags||[])" :key="i" class="bg-gray-800 px-2 py-1 rounded text-[10px]">{{t}} <span @click="compoundForm.tags.splice(i,1)" class="text-red-500 ml-1">×</span></span></div>
-                    <select @change="addCompTag" class="w-full rounded px-3 py-2 text-xs outline-none"><option value="">+ 添加标签</option><option v-for="t in sysDict.compTags" :value="t">{{t}}</option></select>
+                <div><label class="text-xs text-gray-500 block mb-1">化学式</label><input v-model="compoundForm.formula" class="w-full rounded px-3 py-2 text-sm outline-none font-mono"></div>
+                <div>
+                    <label class="text-xs text-gray-500 block mb-1">标签</label>
+                    <div class="flex flex-wrap gap-2 mb-2">
+                        <span v-for="(t, i) in compoundForm.tags" :key="i" class="bg-gray-800 px-2 py-1 rounded text-[10px] flex items-center">{{ t }} <button @click="compoundForm.tags.splice(i,1)" class="ml-1 text-red-500">×</button></span>
+                    </div>
+                    <select @change="addCompTag" class="w-full rounded px-2 py-2 text-xs outline-none"><option value="">+ 选择标签</option><option v-for="t in sysDict.compTags" :key="t" :value="t">{{t}}</option></select>
                 </div>
             </div>
-            <div class="pt-8"><button @click="saveCompound" class="w-full btn-blue py-3 rounded font-bold">保存</button></div>
+            <div class="pt-6"><button @click="saveCompound" class="w-full btn-blue py-3 rounded font-bold">保存</button></div>
             <div class="pt-2"><button v-if="compoundForm.id" @click="deleteCompound" class="w-full text-red-500 text-xs">删除</button></div>
         </main>
 
-        <main v-if="view === 'methodForm'" class="p-4 space-y-6 overflow-y-auto">
-            <div class="dark-card p-4 rounded-lg"><label class="text-xs font-bold text-blue-400 block mb-2">场景</label><select v-model="methodForm.methodTag" class="w-full rounded px-3 py-2 text-sm font-bold"><option v-for="tag in sysDict.methodTags" :value="tag">{{tag}}</option></select></div>
-            <div class="grid grid-cols-2 gap-4">
-                <div><label class="text-[10px] text-gray-500 block mb-1">源</label><select v-model="methodForm.esiApci" class="w-full rounded px-2 py-2 text-xs"><option>ESI</option><option>APCI</option></select></div>
-                <div><label class="text-[10px] text-gray-500 block mb-1">加荷</label><input v-model="methodForm.adduct" class="w-full rounded px-2 py-2 text-xs"></div>
+        <main v-if="view === 'methodForm'" class="p-4 space-y-4 overflow-y-auto">
+            <div class="dark-card p-3 rounded"><label class="text-xs text-gray-500 block mb-1">场景</label><select v-model="methodForm.methodTag" class="w-full rounded px-2 py-2 text-sm"><option value="">请选择...</option><option v-for="t in sysDict.methodTags" :value="t">{{t}}</option></select></div>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-[10px] text-gray-500">离子源</label><select v-model="methodForm.esiApci" class="w-full rounded px-1 py-2 text-xs"><option>ESI</option><option>APCI</option></select></div>
+                <div><label class="text-[10px] text-gray-500">加荷</label><input v-model="methodForm.adduct" list="al" class="w-full rounded px-1 py-2 text-xs"><datalist id="al"><option value="[M+H]+"></option><option value="[M-H]-"></option></datalist></div>
             </div>
-            <div class="dark-card p-3 rounded-lg">
-                <label class="text-[10px] font-bold text-gray-400 block mb-2">MRM</label>
-                <div v-for="(mrm,i) in (methodForm.mrms||[])" :key="i" class="flex gap-1 mb-1">
-                    <input v-model="mrm.q1" placeholder="Q1" class="w-1/4 p-1 text-center rounded text-[10px]">
-                    <input v-model="mrm.q3" placeholder="Q3" class="w-1/4 p-1 text-center rounded text-[10px]">
-                    <input v-model="mrm.dp" placeholder="DP" class="w-1/5 p-1 text-center rounded text-[10px]">
-                    <input v-model="mrm.ce" placeholder="CE" class="w-1/5 p-1 text-center rounded text-[10px]">
-                    <span @click="methodForm.mrms.splice(i,1)" class="text-red-500 px-1">×</span>
+
+            <div class="dark-card p-3 rounded">
+                <label class="text-[10px] text-gray-400 mb-1 block">MRM 参数</label>
+                <div v-for="(m,i) in methodForm.mrms" :key="i" class="grid grid-cols-5 gap-1 mb-1">
+                    <input v-model="m.q1" placeholder="Q1" type="number" step="0.01" class="col-span-1 rounded p-1 text-center text-[10px]">
+                    <input v-model="m.q3" placeholder="Q3" type="number" step="0.01" class="col-span-1 rounded p-1 text-center text-[10px]">
+                    <input v-model="m.dp" placeholder="DP" type="number" class="col-span-1 rounded p-1 text-center text-[10px]">
+                    <input v-model="m.ce" placeholder="CE" type="number" class="col-span-1 rounded p-1 text-center text-[10px]">
+                    <button @click="methodForm.mrms.splice(i,1)" class="text-red-500">×</button>
                 </div>
-                <button @click="methodForm.mrms.push({q1:'',q3:'',dp:'',ce:''})" class="text-blue-400 text-[10px] mt-1">+ MRM</button>
+                <button @click="methodForm.mrms.push({q1:'',q3:'',dp:'',ce:''})" class="text-blue-400 text-[10px]">+ 添加行</button>
             </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div><label class="text-[10px] text-gray-500">RT</label><input v-model="methodForm.rt" class="w-full rounded px-2 py-2 text-xs"></div>
-                <div><label class="text-[10px] text-gray-500">柱</label><select v-model="methodForm.columnInfo" class="w-full rounded px-2 py-2 text-xs"><option v-for="c in sysDict.columns" :value="c">{{c}}</option></select></div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-[10px] text-gray-500">RT (min)</label><input v-model="methodForm.rt" type="number" step="0.1" class="w-full rounded px-2 py-2 text-xs"></div>
+                <div><label class="text-[10px] text-gray-500">流速</label><input v-model="methodForm.flowRate" type="number" step="0.1" class="w-full rounded px-2 py-2 text-xs"></div>
             </div>
-            <button @click="saveMethod" class="w-full btn-blue py-3 rounded font-bold mt-4">保存方法</button>
-            <button v-if="methodForm.id" @click="deleteMethod" class="w-full text-red-500 text-xs mt-4 text-center">删除</button>
+            <div><label class="text-[10px] text-gray-500">色谱柱</label><select v-model="methodForm.columnInfo" class="w-full rounded px-2 py-2 text-xs"><option value="">选择...</option><option v-for="c in sysDict.columns" :value="c">{{c}}</option></select></div>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <input v-model="methodForm.additiveA" placeholder="流动相 A" class="rounded px-2 py-2 text-[10px]">
+                <input v-model="methodForm.additiveB" placeholder="流动相 B" class="rounded px-2 py-2 text-[10px]">
+            </div>
+
+            <div class="dark-card p-3 rounded">
+                <label class="text-[10px] text-gray-400 mb-1 block">梯度 (Time : B%)</label>
+                <div v-for="(g,i) in methodForm.gradientTable" :key="i" class="flex gap-2 mb-1">
+                    <input v-model="g.time" type="number" step="0.1" class="w-1/3 rounded p-1 text-center text-[10px]">
+                    <input v-model="g.b" type="number" step="1" class="w-1/3 rounded p-1 text-center text-[10px]">
+                    <button @click="methodForm.gradientTable.splice(i,1)" class="text-red-500">×</button>
+                </div>
+                <button @click="methodForm.gradientTable.push({time:'',b:''})" class="text-green-400 text-[10px]">+ 添加梯度</button>
+            </div>
+
+            <div><label class="text-[10px] text-gray-500">备注</label><textarea v-model="methodForm.notes" rows="2" class="w-full rounded px-2 py-2 text-xs"></textarea></div>
+            
+            <div class="pt-4"><button @click="saveMethod" class="w-full btn-blue py-3 rounded font-bold">保存方法</button></div>
+            <div class="pt-2"><button v-if="methodForm.id" @click="deleteMethod" class="w-full text-red-500 text-xs">删除</button></div>
         </main>
 
         <main v-if="view === 'settings'" class="p-4 space-y-6">
-            <h3 class="text-xl font-bold text-blue-400 mb-6 border-b border-gray-800 pb-2">字典管理</h3>
-            <div v-for="dict in [{key:'compTags',title:'标签'},{key:'methodTags',title:'场景'},{key:'columns',title:'色谱柱'}]" :key="dict.key" class="dark-card p-4 rounded-lg">
-                <h4 class="font-bold text-gray-200 mb-3">{{dict.title}}</h4>
-                <div class="flex gap-2 mb-2"><input v-model="newDictStr[dict.key]" class="flex-1 rounded px-2 py-1 text-xs"><button @click="addDict(dict.key)" class="btn-blue px-3 py-1 rounded text-xs">加</button></div>
-                <div class="flex flex-wrap gap-2"><span v-for="(item,i) in (sysDict[dict.key]||[])" :key="i" class="bg-gray-800 text-gray-400 px-2 py-1 rounded text-[10px]">{{item}} <span @click="deleteDict(dict.key,i)" class="text-red-500 ml-1">×</span></span></div>
+            <div v-for="dict in [{key: 'compTags', title: '标签'}, {key: 'methodTags', title: '场景'}, {key: 'columns', title: '色谱柱'}]" :key="dict.key" class="dark-card p-3 rounded">
+                <h4 class="font-bold text-gray-300 mb-2">{{ dict.title }}</h4>
+                <div class="flex gap-2 mb-2"><input v-model="newDictStr[dict.key]" class="flex-1 rounded px-2 py-1 text-xs"><button @click="addDict(dict.key)" class="btn-blue px-3 rounded text-xs">加</button></div>
+                <div class="flex flex-wrap gap-2"><span v-for="(item, idx) in sysDict[dict.key]" :key="idx" class="bg-gray-800 px-2 py-1 rounded text-[10px] flex items-center">{{ item }} <button @click="deleteDict(dict.key, idx)" class="ml-1 text-red-500">×</button></span></div>
             </div>
-            <div class="mt-10 text-center"><button @click="factoryReset" class="text-red-900/60 text-xs border border-red-900/20 px-3 py-1 rounded">恢复出厂设置</button></div>
+            <div class="mt-8 text-center"><button @click="factoryReset" class="text-red-800 text-[10px] border border-red-900 px-2 py-1 rounded">清空重置</button></div>
         </main>
     </div>
 
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
-        }
+        if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(()=>{}); }); }
         const { createApp, ref, computed, onMounted, reactive } = Vue;
         createApp({
             setup() {
                 const view = ref('list');
                 const compounds = ref([]);
                 const methods = ref([]);
-                const sysDict = ref({ columns: [], compTags: ['类黄酮'], methodTags: ['17min'] });
+                const sysDict = ref({ columns: [], compTags: ['类黄酮', '生物碱'], methodTags: ['17min'] });
                 const newDictStr = ref({ columns: '', compTags: '', methodTags: '' });
-                const searchQuery = ref(''); const filterCompTag = ref(''); const filterMethodTag = ref(''); const sortBy = ref('time');
+                const searchQuery = ref(''); const filterCompTag = ref(''); const filterMethodTag = ref('');
+                const sortBy = ref('time'); 
                 const selectedCompIds = ref([]); const currentCompoundId = ref(null);
                 const compoundForm = ref({ id: null, name: '', formula: '', tags: [] });
                 const methodForm = ref({});
-                const expandedIds = reactive(new Set()); // 控制展开状态
                 const atomicMasses = { H: 1.007825, C: 12.000000, N: 14.003074, O: 15.994915, P: 30.973762, S: 31.972071, Na: 22.989770, K: 38.963707 };
-                const genId = () => Date.now().toString() + Math.random().toString(36).substr(2, 5);
-
-                const toggleExpand = (id) => { if(expandedIds.has(id)) expandedIds.delete(id); else expandedIds.add(id); };
+                const expandedIds = reactive(new Set());
                 
-                // 获取主卡片显示的摘要信息 (取第一个方法的数据)
+                const toggleExpand = (id) => { if (expandedIds.has(id)) expandedIds.delete(id); else expandedIds.add(id); };
                 const getPrimaryMethod = (cid) => {
-                    const ms = methods.value.filter(m => m.compoundId === cid);
-                    if (!ms.length) return {};
-                    const q3Str = (ms[0].mrms || []).map(x => x.q3).join(' | ');
-                    return { adduct: ms[0].adduct, q1: ms[0].mrms?.[0]?.q1, q3s: q3Str };
+                    const m = methods.value.find(x => x.compoundId === cid);
+                    if (!m) return {};
+                    return { adduct: m.adduct, q1: m.mrms?.[0]?.q1, q3s: m.mrms?.map(x=>x.q3).join(' ; ') };
                 };
-                
                 const getCompMethods = (cid) => methods.value.filter(m => m.compoundId === cid);
+                const genId = () => Date.now().toString() + Math.random().toString(36).substr(2, 5);
 
                 onMounted(async () => {
                     localforage.config({ name: 'LCMS_LIMS' });
                     compounds.value = (await localforage.getItem('compounds')) || [];
                     methods.value = (await localforage.getItem('methods')) || [];
-                    const d = await localforage.getItem('sysDict'); if(d) sysDict.value = d;
-                    // 数据结构修复
-                    compounds.value.forEach(c => { if(!c.tags) c.tags=[]; });
-                    methods.value.forEach(m => { if(!m.mrms) m.mrms=[{q1:'',q3:'',dp:'',ce:''}]; });
+                    sysDict.value = (await localforage.getItem('sysDict')) || sysDict.value;
+                    // 补全旧数据结构
+                    compounds.value.forEach(c => c.tags = c.tags || []);
+                    methods.value.forEach(m => {
+                        m.mrms = m.mrms || [{q1:'',q3:'',dp:'',ce:''}];
+                        m.gradientTable = m.gradientTable || [{time:'0',b:'5'}];
+                    });
                 });
 
                 const filteredCompounds = computed(() => {
                     let res = [...compounds.value];
                     if (searchQuery.value) res = res.filter(c => c.name.toLowerCase().includes(searchQuery.value.toLowerCase()));
-                    if (filterCompTag.value) res = res.filter(c => c.tags && c.tags.includes(filterCompTag.value));
-                    if (filterMethodTag.value) res = res.filter(c => methods.value.filter(m => m.compoundId === c.id).some(m => m.methodTag === filterMethodTag.value));
+                    if (filterCompTag.value) res = res.filter(c => c.tags.includes(filterCompTag.value));
+                    if (filterMethodTag.value) res = res.filter(c => methods.value.some(m => m.compoundId === c.id && m.methodTag === filterMethodTag.value));
                     
                     return res.sort((a, b) => {
                         if (sortBy.value === 'name') return a.name.localeCompare(b.name);
@@ -283,129 +299,153 @@
                 const currentCompound = computed(() => compounds.value.find(c => c.id === currentCompoundId.value));
                 const currentCompoundMethods = computed(() => methods.value.filter(m => m.compoundId === currentCompoundId.value));
                 const getMethodCount = (id) => methods.value.filter(m => m.compoundId === id).length;
-                const selectAll = computed({ get: () => selectedCompIds.value.length > 0 && selectedCompIds.value.length === filteredCompounds.value.length, set: (v) => { selectedCompIds.value = v ? filteredCompounds.value.map(c => c.id) : []; } });
+                const selectAll = computed({ get: () => selectedCompIds.value.length === filteredCompounds.value.length && filteredCompounds.value.length > 0, set: (v) => selectedCompIds.value = v ? filteredCompounds.value.map(c => c.id) : [] });
 
-                // 核心 CRUD 与 导入导出 (逻辑保持不变)
-                const goBack = () => { if(view.value === 'methodForm' || view.value === 'compoundForm') view.value = 'compoundDetail'; else { view.value='list'; currentCompoundId.value=null; } window.scrollTo(0,0); };
+                const addDict = async (k) => { if(newDictStr.value[k] && !sysDict.value[k].includes(newDictStr.value[k])) { sysDict.value[k].push(newDictStr.value[k]); await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value))); newDictStr.value[k] = ''; } };
+                const deleteDict = async (k, i) => { sysDict.value[k].splice(i, 1); await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value))); };
+
+                const goBack = () => { if(view.value === 'list') currentCompoundId.value = null; view.value = (view.value === 'list' || view.value === 'settings') ? 'list' : 'compoundDetail'; if(view.value === 'list') window.scrollTo(0,0); };
                 const goToCompoundDetail = (id) => { currentCompoundId.value = id; view.value = 'compoundDetail'; window.scrollTo(0,0); };
-                const goToAddCompound = () => { compoundForm.value = {id:null, name:'', formula:'', tags:[]}; view.value='compoundForm'; };
-                const goToEditCompound = () => { compoundForm.value = JSON.parse(JSON.stringify(currentCompound.value)); view.value='compoundForm'; };
-                const goToAddMethod = () => { methodForm.value = {id:null, compoundId:currentCompoundId.value, methodTag:'', esiApci:'ESI', adduct:'[M+H]+', mrms:[{q1:'',q3:'',dp:'',ce:''}], gradientTable:[{time:'0',b:'5'}], rt:'', flowRate:'', columnInfo:'', additiveA:'', additiveB:'', notes:'', image:null}; view.value='methodForm'; };
-                const goToEditMethod = (m) => { methodForm.value = JSON.parse(JSON.stringify(m)); view.value='methodForm'; };
-                
-                const addCompTag = (e) => { if(e.target.value && !compoundForm.value.tags.includes(e.target.value)) compoundForm.value.tags.push(e.target.value); e.target.value=''; };
-                const addDict = async (k) => { if(newDictStr.value[k] && !sysDict.value[k].includes(newDictStr.value[k])) { sysDict.value[k].push(newDictStr.value[k]); await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value))); newDictStr.value[k]=''; } };
-                const deleteDict = async (k,i) => { sysDict.value[k].splice(i,1); await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value))); };
+                const goToAddCompound = () => { compoundForm.value = { id: null, name: '', formula: '', tags: [] }; view.value = 'compoundForm'; };
+                const goToEditCompound = () => { compoundForm.value = JSON.parse(JSON.stringify(currentCompound.value)); view.value = 'compoundForm'; };
+                const addCompTag = (e) => { if (e.target.value && !compoundForm.value.tags.includes(e.target.value)) compoundForm.value.tags.push(e.target.value); e.target.value = ''; };
 
                 const saveCompound = async () => {
-                    if (!compoundForm.value.name) return alert('名称必填');
-                    if (compoundForm.value.id) { compounds.value[compounds.value.findIndex(c=>c.id===compoundForm.value.id)] = {...compoundForm.value}; }
-                    else { compoundForm.value.id = genId(); compounds.value.push({...compoundForm.value}); }
+                    if (!compoundForm.value.name) return alert('输入名称');
+                    if (compoundForm.value.id) { const i = compounds.value.findIndex(c => c.id === compoundForm.value.id); compounds.value[i] = { ...compoundForm.value }; } 
+                    else { compoundForm.value.id = genId(); compounds.value.push({ ...compoundForm.value }); }
                     await localforage.setItem('compounds', JSON.parse(JSON.stringify(compounds.value)));
                     goToCompoundDetail(compoundForm.value.id);
                 };
-                const deleteCompound = async () => { if(confirm('确认删除?')) { methods.value = methods.value.filter(m=>m.compoundId!==compoundForm.value.id); compounds.value = compounds.value.filter(c=>c.id!==compoundForm.value.id); await localforage.setItem('compounds', JSON.parse(JSON.stringify(compounds.value))); await localforage.setItem('methods', JSON.parse(JSON.stringify(methods.value))); view.value='list'; } };
-                const saveMethod = async () => {
-                    if (methodForm.value.id) { methods.value[methods.value.findIndex(m=>m.id===methodForm.value.id)] = {...methodForm.value}; }
-                    else { methodForm.value.id = genId(); methods.value.push({...methodForm.value}); }
-                    await localforage.setItem('methods', JSON.parse(JSON.stringify(methods.value)));
-                    view.value='compoundDetail';
-                };
-                const deleteMethod = async () => { if(confirm('确认删除?')) { methods.value = methods.value.filter(m=>m.id!==methodForm.value.id); await localforage.setItem('methods', JSON.parse(JSON.stringify(methods.value))); view.value='compoundDetail'; } };
-                
-                const handleImage = (e) => { const f = e.target.files[0]; if(f) { const r = new FileReader(); r.onload=(ev)=>methodForm.value.image=ev.target.result; r.readAsDataURL(f); } };
-                const calculateMass = (f) => { if(!f) return ''; let m=0; const r=/([A-Z][a-z]*)(\d*)/g; let match; while((match=r.exec(f))!==null) { const el=match[1], ct=match[2]?parseInt(match[2]):1; if(atomicMasses[el]) m+=atomicMasses[el]*ct; } return m>0?m.toFixed(4):''; };
-                const safeStr = (v) => (v!==undefined && v!==null) ? String(v).trim() : '';
 
-                // 导入导出逻辑保持最新 (常规表 + MRM仪器表)
-                const exportExcel = () => {
-                    if(!selectedCompIds.value.length) return alert('未选择化合物');
-                    const data = compounds.value.filter(c=>selectedCompIds.value.includes(c.id)).flatMap(c=>{
-                        const ms = methods.value.filter(m=>m.compoundId===c.id);
-                        const tags = (c.tags||[]).join(';');
-                        if(!ms.length) return [{'化合物名称':c.name, '化学式':c.formula, '化合物标签':tags}];
-                        return ms.map(m=>({
-                            '化合物名称':c.name, '化学式':c.formula, '离子加荷':m.adduct, 'RT':m.rt,
-                            'Q1':m.mrms?.[0]?.q1, 'Q3':(m.mrms||[]).map(x=>x.q3).join(';'),
-                            '化合物标签':tags, '应用场景':m.methodTag, '色谱柱':m.columnInfo,
-                            '流动相A':m.additiveA, '流动相B':m.additiveB, '流速':m.flowRate,
-                            '洗脱梯度':(m.gradientTable||[]).map(x=>`${x.time}min:${x.b}%`).join(';'), '备注':m.notes
-                        }));
-                    });
-                    const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Data"); XLSX.writeFile(wb, "常规导出.xlsx");
+                const deleteCompound = async () => {
+                    if (confirm('删除该化合物？')) {
+                        methods.value = methods.value.filter(m => m.compoundId !== compoundForm.value.id);
+                        compounds.value = compounds.value.filter(c => c.id !== compoundForm.value.id);
+                        await localforage.setItem('compounds', JSON.parse(JSON.stringify(compounds.value)));
+                        await localforage.setItem('methods', JSON.parse(JSON.stringify(methods.value)));
+                        view.value = 'list';
+                    }
                 };
-                
-                const exportMRMExcel = () => {
-                    if(!selectedCompIds.value.length) return alert('未选择化合物');
-                    const data = [];
-                    compounds.value.filter(c=>selectedCompIds.value.includes(c.id)).forEach(c=>{
-                        const ms = methods.value.filter(m=>m.compoundId===c.id);
-                        let idx = 1;
-                        ms.forEach(m=>{ (m.mrms||[]).forEach(pair=>{
-                            data.push({'Q1':pair.q1, 'Q3':pair.q3, '化合物名称':`${c.name}-${idx}`, 'DP':pair.dp, 'CE':pair.ce}); idx++;
-                        });});
+
+                const initM = (cid) => ({ id: null, compoundId: cid, methodTag: '', esiApci: 'ESI', adduct: '[M+H]+', mrms: [{q1:'',q3:'',dp:'',ce:''}], gradientTable: [{time:'0',b:'5'}], rt: '', flowRate: '', columnInfo: '', additiveA: '', additiveB: '', notes: '', image: null });
+                const goToAddMethod = () => { methodForm.value = initM(currentCompoundId.value); view.value = 'methodForm'; };
+                const goToEditMethod = (m) => { methodForm.value = JSON.parse(JSON.stringify(m)); view.value = 'methodForm'; };
+                const handleImage = (e) => { const f = e.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = (ev) => methodForm.value.image = ev.target.result; r.readAsDataURL(f); };
+
+                const saveMethod = async () => {
+                    if (methodForm.value.id) { const i = methods.value.findIndex(m => m.id === methodForm.value.id); methods.value[i] = { ...methodForm.value }; } 
+                    else { methodForm.value.id = genId(); methods.value.push({ ...methodForm.value }); }
+                    await localforage.setItem('methods', JSON.parse(JSON.stringify(methods.value)));
+                    view.value = 'compoundDetail';
+                };
+
+                const deleteMethod = async () => { if (confirm('删除方法？')) { methods.value = methods.value.filter(m => m.id !== methodForm.value.id); await localforage.setItem('methods', JSON.parse(JSON.stringify(methods.value))); view.value = 'compoundDetail'; } };
+
+                const calculateMass = (f) => {
+                    if (!f) return '';
+                    let m = 0; const r = /([A-Z][a-z]*)(\d*)/g; let match;
+                    while ((match = r.exec(f)) !== null) { const el = match[1], ct = match[2] ? parseInt(match[2]) : 1; if (atomicMasses[el]) m += atomicMasses[el] * ct; }
+                    return m > 0 ? m.toFixed(4) : '';
+                };
+
+                const safeStr = (val) => (val !== undefined && val !== null) ? String(val).trim() : '';
+
+                const exportExcel = () => {
+                    if (selectedCompIds.value.length === 0) return alert('未选中');
+                    const data = compounds.value.filter(c => selectedCompIds.value.includes(c.id)).flatMap(c => {
+                        const ms = methods.value.filter(m => m.compoundId === c.id);
+                        const tagsStr = (c.tags || []).join(';');
+                        if (!ms.length) return [{ '选择框':'', '化合物名称':c.name, '化学式':c.formula, '离子加荷':'', 'RT':'', 'Q1':'', 'Q3':'', '化合物标签':tagsStr, '应用场景':'', '色谱柱':'', '流动相A':'', '流动相B':'', '流速':'', '洗脱梯度':'', '备注':'' }];
+                        return ms.map(m => {
+                            const q1 = m.mrms?.[0]?.q1 || '';
+                            const q3Str = m.mrms?.map(x=>x.q3).join(';');
+                            const grad = m.gradientTable?.map(x=>`${x.time}min:${x.b}%`).join(';');
+                            return { '选择框':'', '化合物名称':c.name, '化学式':c.formula, '离子加荷':m.adduct, 'RT':m.rt, 'Q1':q1, 'Q3':q3Str, '化合物标签':tagsStr, '应用场景':m.methodTag, '色谱柱':m.columnInfo, '流动相A':m.additiveA, '流动相B':m.additiveB, '流速':m.flowRate, '洗脱梯度':grad, '备注':m.notes };
+                        });
                     });
-                    const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "MRM"); XLSX.writeFile(wb, "仪器MRM.xlsx");
+                    const ws = XLSX.utils.json_to_sheet(data, { header: ['选择框','化合物名称','化学式','离子加荷','RT','Q1','Q3','化合物标签','应用场景','色谱柱','流动相A','流动相B','流速','洗脱梯度','备注'] }); 
+                    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "LCMS_Data");
+                    XLSX.writeFile(wb, `常规表导出_${new Date().toLocaleDateString()}.xlsx`);
+                };
+
+                const exportMRMExcel = () => {
+                    if (selectedCompIds.value.length === 0) return alert('未选中');
+                    const data = [];
+                    compounds.value.filter(c => selectedCompIds.value.includes(c.id)).forEach(c => {
+                        methods.value.filter(m => m.compoundId === c.id).forEach((m, idx) => {
+                            m.mrms?.forEach(r => data.push({ 'Q1':r.q1, 'Q3':r.q3, '化合物名称':`${c.name}-${idx+1}`, 'DP':r.dp, 'CE':r.ce }));
+                        });
+                    });
+                    const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "MRM_List");
+                    XLSX.writeFile(wb, `仪器MRM表_${new Date().toLocaleDateString()}.xlsx`);
                 };
 
                 const triggerImport = () => document.getElementById('importFile').click();
                 const triggerImportMRM = () => document.getElementById('importMRMFile').click();
-                
-                const importExcel = (e) => { /* 沿用之前的常规导入逻辑，略微压缩 */ 
+
+                const importExcel = (e) => {
                     const f = e.target.files[0]; if(!f) return;
-                    const r = new FileReader(); r.onload=async(ev)=>{
+                    const r = new FileReader();
+                    r.onload = async (ev) => {
                         try {
-                            const d = new Uint8Array(ev.target.result); const wb = XLSX.read(d, {type:'array'}); const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                            let cnt=0;
-                            json.forEach(row=>{
-                                const name = safeStr(row['化合物名称']||row['化合物名稱']); if(!name) return;
+                            const json = XLSX.utils.sheet_to_json(XLSX.read(new Uint8Array(ev.target.result), {type:'array'}).Sheets[XLSX.read(new Uint8Array(ev.target.result), {type:'array'}).SheetNames[0]]);
+                            let cntC=0, cntM=0, upD=false;
+                            json.forEach(row => {
+                                const name = safeStr(row['化合物名称'] || row['化合物名稱']); if(!name) return;
+                                let tags = safeStr(row['化合物标签']||row['化合物標籤']).split(/[,，;；]/).filter(Boolean);
+                                tags.forEach(t=>{if(!sysDict.value.compTags.includes(t)) {sysDict.value.compTags.push(t); upD=true;}});
+                                let mTag = safeStr(row['应用场景']); if(mTag && !sysDict.value.methodTags.includes(mTag)) {sysDict.value.methodTags.push(mTag); upD=true;}
+                                let col = safeStr(row['色谱柱']); if(col && !sysDict.value.columns.includes(col)) {sysDict.value.columns.push(col); upD=true;}
+                                
                                 let c = compounds.value.find(x=>x.name===name);
-                                if(!c) { c={id:genId(), name:name, formula:safeStr(row['化学式']), tags:[]}; compounds.value.push(c); cnt++; }
-                                // ... (其余导入逻辑保持不变)
-                                if (row['Q1'] || row['RT']) {
-                                    let q3s = safeStr(row['Q3']).split(/[,;]/).map(x=>x.trim()).filter(Boolean);
-                                    let mrms = q3s.length ? q3s.map(q3=>({q1:safeStr(row['Q1']), q3:q3, dp:'', ce:''})) : [{q1:safeStr(row['Q1']), q3:'', dp:'', ce:''}];
-                                    methods.value.push({
-                                        id:genId(), compoundId:c.id, methodTag:safeStr(row['应用场景'])||'导入', esiApci:'ESI', adduct:safeStr(row['离子加荷'])||'[M+H]+',
-                                        mrms:mrms, rt:safeStr(row['RT']), columnInfo:safeStr(row['色谱柱']), mpA:'', additiveA:safeStr(row['流动相A']), mpB:'', additiveB:safeStr(row['流动相B']), flowRate:safeStr(row['流速']),
-                                        gradientTable:[{time:'0',b:'5'}], notes:safeStr(row['备注'])
-                                    });
+                                if(!c) { c={id:genId(), name, formula:safeStr(row['化学式']), tags}; compounds.value.push(c); cntC++; }
+                                else { const nt=new Set([...c.tags, ...tags]); c.tags=Array.from(nt).slice(0,3); }
+
+                                if(row['Q1'] || row['Q3'] || row['RT']) {
+                                    let mrms = safeStr(row['Q3']).split(/[,，;；]/).filter(Boolean).map(q3=>({q1:safeStr(row['Q1']), q3, dp:'', ce:''}));
+                                    if(!mrms.length) mrms.push({q1:safeStr(row['Q1']), q3:'', dp:'', ce:''});
+                                    let grad = safeStr(row['洗脱梯度']).split(/[,，;；]/).filter(Boolean).map(p=>{const m=p.match(/([\d.]+)\s*min\s*:\s*([\d.]+)\s*%/); return m?{time:m[1],b:m[2]}:{time:'0',b:'0'}});
+                                    if(!grad.length) grad=[{time:'0',b:'5'}];
+                                    methods.value.push({id:genId(), compoundId:c.id, methodTag:mTag||'导入', esiApci:'ESI', adduct:safeStr(row['离子加荷'])||'[M+H]+', mrms, rt:safeStr(row['RT']), columnInfo:col, mpA:'', additiveA:safeStr(row['流动相A']), mpB:'', additiveB:safeStr(row['流动相B']), flowRate:safeStr(row['流速']), gradientTable:grad, notes:safeStr(row['备注']), image:null});
+                                    cntM++;
                                 }
                             });
+                            if(upD) await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value)));
                             await localforage.setItem('compounds', JSON.parse(JSON.stringify(compounds.value)));
                             await localforage.setItem('methods', JSON.parse(JSON.stringify(methods.value)));
-                            alert('导入完成'); e.target.value='';
-                        } catch(err){alert('导入错误');}
-                    }; r.readAsArrayBuffer(f);
+                            alert(`导入成功: ${cntC} 化合物, ${cntM} 方法`); e.target.value='';
+                        } catch(err){ alert('格式错误'); }
+                    };
+                    r.readAsArrayBuffer(f);
                 };
 
-                const importMRMExcel = (e) => { /* 沿用之前的MRM导入逻辑 */
+                const importMRMExcel = (e) => {
                     const f = e.target.files[0]; if(!f) return;
-                    const r = new FileReader(); r.onload=async(ev)=>{
+                    const r = new FileReader();
+                    r.onload = async (ev) => {
                         try {
-                            const d = new Uint8Array(ev.target.result); const wb = XLSX.read(d, {type:'array'}); const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                            const groups={}; let cnt=0;
-                            json.forEach(row=>{
-                                const raw = safeStr(row['化合物名称']||row['name']); if(!raw) return;
-                                const base = raw.replace(/-\d+$/, '').trim();
-                                if(!groups[base]) groups[base]=[];
-                                groups[base].push({q1:safeStr(row['Q1']), q3:safeStr(row['Q3']), dp:safeStr(row['DP']), ce:safeStr(row['CE'])});
+                            const json = XLSX.utils.sheet_to_json(XLSX.read(new Uint8Array(ev.target.result), {type:'array'}).Sheets[XLSX.read(new Uint8Array(ev.target.result), {type:'array'}).SheetNames[0]]);
+                            let cntC=0, cntM=0;
+                            const grps = {};
+                            json.forEach(row => {
+                                const name = safeStr(row['化合物名称']||row['name']||row['Name']).replace(/-\d+$/, '').trim(); if(!name) return;
+                                if(!grps[name]) grps[name]=[];
+                                grps[name].push({q1:safeStr(row['Q1']), q3:safeStr(row['Q3']), dp:safeStr(row['DP']), ce:safeStr(row['CE'])});
                             });
-                            for(const base in groups){
-                                let c = compounds.value.find(x=>x.name===base);
-                                if(!c) { c={id:genId(), name:base, formula:'', tags:[]}; compounds.value.push(c); cnt++; }
-                                let adduct = '[M+H]+';
-                                if(groups[base].some(m=>parseFloat(m.dp)<0 || parseFloat(m.ce)<0)) adduct = '[M-H]-';
-                                methods.value.push({
-                                    id:genId(), compoundId:c.id, methodTag:'MRM导入', esiApci:'ESI', adduct:adduct, mrms:groups[base],
-                                    rt:'', columnInfo:'', mpA:'', additiveA:'', mpB:'', additiveB:'', flowRate:'', gradientTable:[{time:'0',b:'5'}], notes:'', image:null
-                                });
+                            for(const n in grps) {
+                                let c = compounds.value.find(x=>x.name===n);
+                                if(!c) { c={id:genId(), name:n, formula:'', tags:[]}; compounds.value.push(c); cntC++; }
+                                let add='[M+H]+'; if(grps[n].some(x=>parseFloat(x.dp)<0||parseFloat(x.ce)<0)) add='[M-H]-';
+                                methods.value.push({id:genId(), compoundId:c.id, methodTag:'机编导入', esiApci:'ESI', adduct:add, mrms:grps[n], rt:'', columnInfo:'', mpA:'', additiveA:'', mpB:'', additiveB:'', flowRate:'', gradientTable:[{time:'0',b:'5'}], notes:'', image:null});
+                                cntM++;
                             }
                             await localforage.setItem('compounds', JSON.parse(JSON.stringify(compounds.value)));
                             await localforage.setItem('methods', JSON.parse(JSON.stringify(methods.value)));
-                            alert('MRM导入完成'); e.target.value='';
-                        } catch(err){alert('导入错误');}
-                    }; r.readAsArrayBuffer(f);
+                            alert(`导入MRM成功: ${cntC} 化合物, ${cntM} 方法`); e.target.value='';
+                        } catch(err){ alert('格式错误'); }
+                    };
+                    r.readAsArrayBuffer(f);
                 };
 
                 const factoryReset = async () => { if(confirm('清空所有?')) { await localforage.clear(); window.location.reload(); } };

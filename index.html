@@ -25,7 +25,6 @@
         .btn-green { background-color: #2d5a3f; color: #ffffff; }
         .list-item:active { background-color: #2d2d2e; }
         
-        /* 布局核心：名称跨两行，其他参数对应 */
         .grid-layout { 
             display: grid; 
             grid-template-columns: 25px 2fr 1fr 1fr 1.2fr 25px; 
@@ -33,22 +32,39 @@
             align-items: center; 
         }
         
-        /* 顶部安全区域适配 */
+        /* --- 核心修复区 --- */
         header {
-            padding-top: max(1rem, env(safe-area-inset-top));
-            padding-left: max(1rem, env(safe-area-inset-left));
-            padding-right: max(1rem, env(safe-area-inset-right));
+            /* 1. 顶部增加额外的 15px 缓冲，防止紧贴刘海 */
+            padding-top: calc(env(safe-area-inset-top) + 15px);
+            /* 2. 左右也增加安全距离，防止圆角切掉按钮 */
+            padding-left: max(16px, env(safe-area-inset-left));
+            padding-right: max(16px, env(safe-area-inset-right));
+            /* 3. 增加高度以容纳 padding */
+            height: auto;
+            min-height: 80px; 
         }
+        
+        /* 让标题和按钮垂直居中对齐 */
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding-bottom: 10px; /* 底部留白 */
+        }
+        /* ---------------- */
     </style>
 </head>
 <body class="antialiased">
     <div id="app" class="max-w-3xl mx-auto min-h-screen relative pb-20 shadow-2xl" style="background-color: #1a1a1b;">
         
-        <header class="p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg" style="background-color: #222223; border-bottom: 1px solid #333;">
-            <h1 class="text-lg font-bold text-gray-200 truncate pr-2">{{ getTitle() }}</h1>
-            <div class="flex gap-2 shrink-0">
-                <button v-if="view === 'list'" @click="view = 'settings'" class="text-xs px-3 py-1.5 rounded border border-gray-600 bg-gray-800 active:bg-gray-700 transition-colors">字典管理</button>
-                <button v-if="view !== 'list'" @click="goBack" class="text-xs px-4 py-1.5 rounded border border-gray-500 bg-gray-700 text-blue-200 font-bold active:bg-gray-600 transition-colors">返回</button>
+        <header class="sticky top-0 z-50 shadow-lg flex flex-col justify-end" style="background-color: #222223; border-bottom: 1px solid #333;">
+            <div class="header-content">
+                <h1 class="text-lg font-bold text-gray-200 truncate pr-2">{{ getTitle() }}</h1>
+                <div class="flex gap-2 shrink-0">
+                    <button v-if="view === 'list'" @click="view = 'settings'" class="text-xs px-3 py-2 rounded border border-gray-600 bg-gray-800 active:bg-gray-700 transition-colors">字典管理</button>
+                    <button v-if="view !== 'list'" @click="goBack" class="text-xs px-5 py-2 rounded border border-gray-500 bg-gray-700 text-blue-200 font-bold active:bg-gray-600 transition-colors shadow-md">返回</button>
+                </div>
             </div>
         </header>
 
@@ -99,18 +115,13 @@
                             <div class="row-span-2 flex items-center justify-center h-full" @click.stop>
                                 <input type="checkbox" v-model="selectedCompIds" :value="comp.id" class="w-4 h-4 rounded border-gray-500 bg-gray-700">
                             </div>
-
-                            <div class="row-span-2 text-sm font-bold text-gray-200 leading-tight break-words pr-2 flex items-center h-full">
-                                {{ comp.name }}
-                            </div>
-
+                            <div class="row-span-2 text-sm font-bold text-gray-200 leading-tight break-words pr-2 flex items-center h-full">{{ comp.name }}</div>
                             <div class="text-[10px] text-gray-500 font-mono text-center border-b border-gray-700/50 pb-1 truncate">{{ comp.formula || '-' }}</div>
                             <div class="text-[10px] text-gray-500 font-mono text-center border-b border-gray-700/50 pb-1">{{ calculateMass(comp.formula) || '-' }}</div>
                             <div class="text-[10px] text-gray-400 text-center truncate border-b border-gray-700/50 pb-1">{{ (comp.tags||[])[0] || '-' }}</div>
                             <div class="flex justify-center border-b border-gray-700/50 pb-1">
                                 <span class="w-4 h-4 rounded-full border border-gray-600 text-[10px] flex items-center justify-center">{{ getMethodCount(comp.id) }}</span>
                             </div>
-
                             <div class="text-[10px] font-mono text-center font-bold" :class="getPrimaryMethod(comp.id).adduct?.includes('-') ? 'text-red-400' : 'text-green-400'">{{ getPrimaryMethod(comp.id).adduct || '-' }}</div>
                             <div class="text-[10px] text-gray-300 font-mono text-center">{{ getPrimaryMethod(comp.id).q1 || '-' }}</div>
                             <div class="text-[10px] text-gray-300 font-mono text-center truncate">{{ getPrimaryMethod(comp.id).q3s || '-' }}</div>
@@ -121,7 +132,6 @@
                             </div>
                         </div>
                     </div>
-                    
                     <div v-if="expandedIds.has(comp.id)" class="bg-black/30 border-t border-gray-700 px-2 py-1">
                         <div v-if="getMethodCount(comp.id) === 0" class="text-center text-[10px] text-gray-600 py-1">无方法</div>
                         <div v-for="m in getCompMethods(comp.id)" :key="m.id" class="grid grid-cols-12 gap-1 text-[10px] text-gray-400 border-b border-gray-800 last:border-0 py-1 items-center">
@@ -137,7 +147,6 @@
                     </div>
                 </div>
             </div>
-            
             <button @click="goToAddCompound" class="fixed bottom-8 right-6 btn-blue w-14 h-14 rounded-full shadow-2xl text-3xl flex items-center justify-center active:scale-90 transition-transform z-50">+</button>
         </main>
 
@@ -218,8 +227,8 @@
             <div><label class="text-[10px] text-gray-500">色谱柱</label><select v-model="methodForm.columnInfo" class="w-full rounded px-2 py-2 text-xs border border-gray-700"><option value="">选择...</option><option v-for="c in sysDict.columns" :value="c">{{c}}</option></select></div>
             
             <div class="grid grid-cols-2 gap-3">
-                <div><label class="text-[10px] text-gray-500">流动相 A</label><input v-model="methodForm.additiveA" class="w-full rounded px-2 py-2 text-[10px] border border-gray-700"></div>
-                <div><label class="text-[10px] text-gray-500">流动相 B</label><input v-model="methodForm.additiveB" class="w-full rounded px-2 py-2 text-[10px] border border-gray-700"></div>
+                <input v-model="methodForm.additiveA" placeholder="流动相 A" class="rounded px-2 py-2 text-[10px] border border-gray-700">
+                <input v-model="methodForm.additiveB" placeholder="流动相 B" class="rounded px-2 py-2 text-[10px] border border-gray-700">
             </div>
 
             <div class="dark-card p-3 rounded">
@@ -233,7 +242,6 @@
             </div>
 
             <div><label class="text-[10px] text-gray-500">备注</label><textarea v-model="methodForm.notes" rows="2" class="w-full rounded px-2 py-2 text-xs border border-gray-700"></textarea></div>
-            
             <div class="pt-4"><button @click="saveMethod" class="w-full btn-blue py-3 rounded font-bold active:scale-95 transition-transform shadow-lg">保存方法</button></div>
             <div class="pt-2 text-center"><button v-if="methodForm.id" @click="deleteMethod" class="text-red-500 text-xs py-2 px-4 rounded hover:bg-red-900/20">删除此方法</button></div>
         </main>
@@ -242,7 +250,7 @@
             <div v-for="dict in [{key: 'compTags', title: '标签'}, {key: 'methodTags', title: '场景'}, {key: 'columns', title: '色谱柱'}]" :key="dict.key" class="dark-card p-3 rounded">
                 <h4 class="font-bold text-gray-300 mb-2">{{ dict.title }}</h4>
                 <div class="flex gap-2 mb-2"><input v-model="newDictStr[dict.key]" class="flex-1 rounded px-2 py-1 text-xs border border-gray-700 bg-gray-800"><button @click="addDict(dict.key)" class="btn-blue px-3 rounded text-xs">加</button></div>
-                <div class="flex flex-wrap gap-2"><span v-for="(item, idx) in sysDict[dict.key]" :key="idx" class="bg-gray-800 px-2 py-1 rounded text-[10px] flex items-center border border-gray-700">{{ item }} <button @click="deleteDict(dict.key, idx)" class="ml-2 text-red-500 font-bold">×</button></span></div>
+                <div class="flex flex-wrap gap-2"><span v-for="(item, idx) in sysDict[dict.key]" :key="idx" class="bg-gray-800 px-2 py-1 rounded text-[10px] flex items-center border border-gray-700">{{ item }} <button @click="deleteDict(dict.key, idx)" class="ml-1 text-red-500 font-bold">×</button></span></div>
             </div>
             <div class="mt-8 text-center"><button @click="factoryReset" class="text-red-800 text-[10px] border border-red-900 px-3 py-1.5 rounded hover:bg-red-900/10">清空所有数据</button></div>
         </main>
@@ -318,12 +326,11 @@
                 const addDict = async (k) => { if(newDictStr.value[k] && !sysDict.value[k].includes(newDictStr.value[k])) { sysDict.value[k].push(newDictStr.value[k]); await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value))); newDictStr.value[k] = ''; } };
                 const deleteDict = async (k, i) => { sysDict.value[k].splice(i, 1); await localforage.setItem('sysDict', JSON.parse(JSON.stringify(sysDict.value))); };
 
-                // 【修复核心】返回逻辑修正
+                // 【已修复】返回逻辑
                 const goBack = () => {
                     if (view.value === 'methodForm' || view.value === 'compoundForm') {
                         view.value = 'compoundDetail';
                     } else {
-                        // 如果是 settings 或 compoundDetail，一律回 list
                         view.value = 'list';
                         currentCompoundId.value = null;
                     }
@@ -475,7 +482,7 @@
 
                 const factoryReset = async () => { if(confirm('清空所有?')) { await localforage.clear(); window.location.reload(); } };
 
-                return { view, getTitle, expandedIds, toggleExpand, getPrimaryMethod, getCompMethods, sortBy, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel, triggerImportMRM, exportMRMExcel, importMRMExcel, factoryReset };
+                return { view, expandedIds, toggleExpand, getPrimaryMethod, getCompMethods, sortBy, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel, triggerImportMRM, exportMRMExcel, importMRMExcel, factoryReset, getTitle };
             }
         }).mount('#app');
     </script>

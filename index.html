@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>LC-MS 个人方法库</title>
     
     <link rel="manifest" href="./manifest.json">
@@ -24,22 +24,31 @@
         .btn-blue { background-color: #314d71; color: #ffffff; }
         .btn-green { background-color: #2d5a3f; color: #ffffff; }
         .list-item:active { background-color: #2d2d2e; }
-        /* 强制表格布局对齐 */
+        
+        /* 核心布局修复 */
         .grid-layout { 
             display: grid; 
             grid-template-columns: 20px 2fr 1fr 1fr 1.2fr 20px; 
             gap: 8px; 
             align-items: center; 
         }
+        
+        /* 针对 iPhone 刘海屏的终极修复：增加顶部安全距离 */
+        header {
+            padding-top: max(1rem, env(safe-area-inset-top));
+            padding-left: max(1rem, env(safe-area-inset-left));
+            padding-right: max(1rem, env(safe-area-inset-right));
+        }
     </style>
 </head>
 <body class="antialiased">
     <div id="app" class="max-w-3xl mx-auto min-h-screen relative pb-20 shadow-2xl" style="background-color: #1a1a1b;">
-        <header class="p-4 sticky top-0 z-10 flex justify-between items-center shadow-lg" style="background-color: #222223; border-bottom: 1px solid #333;">
+        
+        <header class="p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg" style="background-color: #222223; border-bottom: 1px solid #333;">
             <h1 class="text-lg font-bold text-gray-200">{{ view === 'list' ? '化合物库' : (view === 'settings' ? '字典管理' : (view === 'compoundDetail' ? '详情' : '编辑')) }}</h1>
             <div class="flex gap-2">
-                <button v-if="view === 'list'" @click="view = 'settings'" class="text-xs px-3 py-1 rounded border border-gray-600 bg-gray-800">字典管理</button>
-                <button v-if="view !== 'list'" @click="goBack" class="text-xs px-3 py-1 rounded border border-gray-600 bg-gray-800">返回</button>
+                <button v-if="view === 'list'" @click="view = 'settings'" class="text-xs px-3 py-1 rounded border border-gray-600 bg-gray-800 active:bg-gray-700">字典管理</button>
+                <button v-if="view !== 'list'" @click="goBack" class="text-xs px-4 py-1.5 rounded border border-gray-600 bg-gray-800 text-blue-300 font-bold active:bg-gray-700">返回</button>
             </div>
         </header>
 
@@ -70,12 +79,12 @@
                         <input type="file" id="importFile" class="hidden" @change="importExcel">
                         <input type="file" id="importMRMFile" class="hidden" @change="importMRMExcel">
                         <div class="flex gap-1">
-                            <button @click="triggerImport" class="bg-gray-700 text-white px-2 py-1 rounded text-[10px]">常入</button>
-                            <button @click="exportExcel" class="bg-gray-700 text-white px-2 py-1 rounded text-[10px]">常出</button>
+                            <button @click="triggerImport" class="bg-gray-700 text-white px-2 py-1 rounded text-[10px] active:scale-95">常入</button>
+                            <button @click="exportExcel" class="bg-gray-700 text-white px-2 py-1 rounded text-[10px] active:scale-95">常出</button>
                         </div>
                         <div class="flex gap-1">
-                            <button @click="triggerImportMRM" class="btn-green px-2 py-1 rounded text-[10px]">机入</button>
-                            <button @click="exportMRMExcel" class="btn-blue px-2 py-1 rounded text-[10px]">机出</button>
+                            <button @click="triggerImportMRM" class="btn-green px-2 py-1 rounded text-[10px] active:scale-95">机入</button>
+                            <button @click="exportMRMExcel" class="btn-blue px-2 py-1 rounded text-[10px] active:scale-95">机出</button>
                         </div>
                     </div>
                 </div>
@@ -90,32 +99,21 @@
                             <div class="row-span-2 flex items-center justify-center" @click.stop>
                                 <input type="checkbox" v-model="selectedCompIds" :value="comp.id" class="w-4 h-4 rounded border-gray-600 bg-gray-700">
                             </div>
-
-                            <div class="row-span-2 text-sm font-bold text-gray-200 leading-tight break-words pr-1">
-                                {{ comp.name }}
-                            </div>
-
+                            <div class="row-span-2 text-sm font-bold text-gray-200 leading-tight break-words pr-1">{{ comp.name }}</div>
                             <div class="text-[10px] text-gray-500 font-mono truncate text-center border-b border-gray-800 pb-1">{{ comp.formula || '-' }}</div>
                             <div class="text-[10px] text-gray-500 font-mono text-center border-b border-gray-800 pb-1">{{ calculateMass(comp.formula) || '-' }}</div>
                             <div class="text-[10px] text-gray-400 text-center truncate border-b border-gray-800 pb-1">{{ (comp.tags||[])[0] || '-' }}</div>
                             <div class="flex justify-center border-b border-gray-800 pb-1">
                                 <span class="w-4 h-4 rounded-full border border-gray-600 text-[10px] flex items-center justify-center">{{ getMethodCount(comp.id) }}</span>
                             </div>
-
-                            <div class="text-[10px] font-mono text-center font-bold" 
-                                 :class="getPrimaryMethod(comp.id).adduct?.includes('-') ? 'text-red-400' : 'text-green-400'">
-                                {{ getPrimaryMethod(comp.id).adduct || '-' }}
-                            </div>
+                            <div class="text-[10px] font-mono text-center font-bold" :class="getPrimaryMethod(comp.id).adduct?.includes('-') ? 'text-red-400' : 'text-green-400'">{{ getPrimaryMethod(comp.id).adduct || '-' }}</div>
                             <div class="text-[10px] text-gray-300 font-mono text-center">{{ getPrimaryMethod(comp.id).q1 || '-' }}</div>
                             <div class="text-[10px] text-gray-300 font-mono text-center truncate">{{ getPrimaryMethod(comp.id).q3s || '-' }}</div>
                             <div class="flex justify-center">
-                                <button @click.stop="toggleExpand(comp.id)" class="text-gray-400 font-bold hover:text-white text-lg leading-none">
-                                    {{ expandedIds.has(comp.id) ? '−' : '+' }}
-                                </button>
+                                <button @click.stop="toggleExpand(comp.id)" class="text-gray-400 font-bold hover:text-white text-lg leading-none active:scale-125 transition-transform">{{ expandedIds.has(comp.id) ? '−' : '+' }}</button>
                             </div>
                         </div>
                     </div>
-
                     <div v-if="expandedIds.has(comp.id)" class="bg-black/30 border-t border-gray-700 px-2 py-1">
                         <div v-if="getMethodCount(comp.id) === 0" class="text-center text-[10px] text-gray-600 py-1">无方法</div>
                         <div v-for="m in getCompMethods(comp.id)" :key="m.id" class="grid grid-cols-12 gap-1 text-[10px] text-gray-400 border-b border-gray-800 last:border-0 py-1 items-center">
@@ -137,7 +135,7 @@
 
         <main v-if="view === 'compoundDetail' && currentCompound" class="p-4 space-y-4">
             <div class="dark-card rounded-lg p-5 relative shadow-lg">
-                <button @click="goToEditCompound" class="absolute top-4 right-4 text-blue-400 text-xs font-bold">编辑</button>
+                <button @click="goToEditCompound" class="absolute top-4 right-4 text-blue-400 text-xs font-bold active:scale-95">编辑</button>
                 <h2 class="text-xl font-bold text-gray-100 mb-1 break-words pr-8">{{ currentCompound.name }}</h2>
                 <div class="flex gap-2 mb-2">
                     <span v-for="t in currentCompound.tags" :key="t" class="bg-gray-800 text-[10px] px-1 rounded text-gray-400 border border-gray-700">{{t}}</span>
@@ -149,12 +147,12 @@
             </div>
             <div class="flex justify-between items-center border-b border-gray-800 pb-2 mt-4">
                 <h3 class="text-sm font-bold text-gray-300">方法列表</h3>
-                <button @click="goToAddMethod" class="text-blue-400 text-xs font-bold">+ 新增</button>
+                <button @click="goToAddMethod" class="text-blue-400 text-xs font-bold active:scale-95">+ 新增</button>
             </div>
-            <div v-for="method in currentCompoundMethods" :key="method.id" class="dark-card rounded-lg p-3 relative cursor-pointer hover:border-gray-500" @click="goToEditMethod(method)">
+            <div v-for="method in currentCompoundMethods" :key="method.id" class="dark-card rounded-lg p-3 relative cursor-pointer hover:border-gray-500 active:bg-gray-800" @click="goToEditMethod(method)">
                 <div class="flex justify-between items-start mb-1">
                     <span class="bg-blue-900/30 text-blue-300 px-1 rounded text-[10px]">{{ method.methodTag }}</span>
-                    <span class="text-[10px] text-gray-500">{{ method.esiApci }} / {{ method.adduct }}</span>
+                    <span class="text-[10px] text-gray-500">{{ method.esiApci }} / <span :class="{'text-red-400': method.adduct==='[M-H]-', 'text-green-400': method.adduct!=='[M-H]-'}">{{ method.adduct }}</span></span>
                 </div>
                 <div class="text-xs text-gray-400 mb-2">
                     RT: <span class="text-gray-200">{{ method.rt }}</span> | Col: {{ method.columnInfo }}
@@ -181,8 +179,8 @@
                     <select @change="addCompTag" class="w-full rounded px-2 py-2 text-xs outline-none"><option value="">+ 选择标签</option><option v-for="t in sysDict.compTags" :key="t" :value="t">{{t}}</option></select>
                 </div>
             </div>
-            <div class="pt-6"><button @click="saveCompound" class="w-full btn-blue py-3 rounded font-bold">保存</button></div>
-            <div class="pt-2"><button v-if="compoundForm.id" @click="deleteCompound" class="w-full text-red-500 text-xs">删除</button></div>
+            <div class="pt-6"><button @click="saveCompound" class="w-full btn-blue py-3 rounded font-bold active:scale-95 transition-transform">保存</button></div>
+            <div class="pt-2"><button v-if="compoundForm.id" @click="deleteCompound" class="w-full text-red-500 text-xs text-center p-2">删除</button></div>
         </main>
 
         <main v-if="view === 'methodForm'" class="p-4 space-y-4 overflow-y-auto">
@@ -227,9 +225,8 @@
             </div>
 
             <div><label class="text-[10px] text-gray-500">备注</label><textarea v-model="methodForm.notes" rows="2" class="w-full rounded px-2 py-2 text-xs"></textarea></div>
-            
-            <div class="pt-4"><button @click="saveMethod" class="w-full btn-blue py-3 rounded font-bold">保存方法</button></div>
-            <div class="pt-2"><button v-if="methodForm.id" @click="deleteMethod" class="w-full text-red-500 text-xs">删除</button></div>
+            <div class="pt-4"><button @click="saveMethod" class="w-full btn-blue py-3 rounded font-bold active:scale-95 transition-transform">保存方法</button></div>
+            <div class="pt-2"><button v-if="methodForm.id" @click="deleteMethod" class="w-full text-red-500 text-xs text-center p-2">删除</button></div>
         </main>
 
         <main v-if="view === 'settings'" class="p-4 space-y-6">
@@ -274,7 +271,6 @@
                     compounds.value = (await localforage.getItem('compounds')) || [];
                     methods.value = (await localforage.getItem('methods')) || [];
                     sysDict.value = (await localforage.getItem('sysDict')) || sysDict.value;
-                    // 补全旧数据结构
                     compounds.value.forEach(c => c.tags = c.tags || []);
                     methods.value.forEach(m => {
                         m.mrms = m.mrms || [{q1:'',q3:'',dp:'',ce:''}];
@@ -450,7 +446,7 @@
 
                 const factoryReset = async () => { if(confirm('清空所有?')) { await localforage.clear(); window.location.reload(); } };
 
-                return { view, sortBy, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel, triggerImportMRM, exportMRMExcel, importMRMExcel, factoryReset, expandedIds, toggleExpand, getPrimaryMethod, getCompMethods };
+                return { view, expandedIds, toggleExpand, getPrimaryMethod, getCompMethods, sortBy, compounds, methods, sysDict, newDictStr, searchQuery, filterCompTag, filterMethodTag, selectedCompIds, currentCompoundId, compoundForm, methodForm, filteredCompounds, currentCompound, currentCompoundMethods, getMethodCount, selectAll, addDict, deleteDict, goBack, goToCompoundDetail, goToAddCompound, goToEditCompound, addCompTag, saveCompound, deleteCompound, goToAddMethod, goToEditMethod, handleImage, saveMethod, deleteMethod, calculateMass, triggerImport, exportExcel, importExcel, triggerImportMRM, exportMRMExcel, importMRMExcel, factoryReset };
             }
         }).mount('#app');
     </script>
